@@ -1,6 +1,10 @@
 // src/utils/validators.js
 
 export const validarEmail = (email) => {
+  // Si está vacío, es válido (campo opcional)
+  if (!email || email.trim() === '') return true;
+  
+  // Si tiene contenido, validar formato
   const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return regex.test(email);
 };
@@ -42,7 +46,8 @@ export const validarPersona = (persona) => {
     errores.dni = 'El DNI debe tener 8 dígitos';
   }
 
-  if (!validarEmail(persona.email)) {
+  // Solo validar email si tiene contenido
+  if (persona.email && persona.email.trim() !== '' && !validarEmail(persona.email)) {
     errores.email = 'Email inválido';
   }
 
