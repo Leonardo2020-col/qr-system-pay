@@ -1,73 +1,94 @@
 // src/components/QRScannerApp.jsx
 
-import React, { useState, useEffect } from 'react';
-import { Html5QrcodeScanner } from 'html5-qrcode';
-import { CheckCircle, XCircle, ArrowLeft, Camera, Home, Upload, Edit } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Html5Qrcode } from 'html5-qrcode';
+import { CheckCircle, XCircle, ArrowLeft, Camera, Home, Upload, Edit, Video } from 'lucide-react';
 import { verificarPagoAlDia, formatearFecha, diasDesdeUltimoPago } from '../utils/dateUtils';
 
 const QRScannerApp = ({ onVolver }) => {
   const [persona, setPersona] = useState(null);
   const [scanning, setScanning] = useState(false);
-  const [scanner, setScanner] = useState(null);
+  const [cameras, setCameras] = useState([]);
+  const [selectedCamera, setSelectedCamera] = useState('');
+  const [scannerStarted, setScannerStarted] = useState(false);
+  const scannerRef = useRef(null);
 
+  // Obtener lista de cámaras disponibles
   useEffect(() => {
-    if (scanning) {
-      const html5QrcodeScanner = new Html5QrcodeScanner(
-        'qr-reader',
-        { 
+    Html5Qrcode.getCameras().then(devices => {
+      if (devices && devices.length) {
+        setCameras(devices);
+        // Seleccionar la cámara trasera por defecto
+        const backCamera = devices.find(d => 
+          d.label.toLowerCase().includes('back') || 
+          d.label.toLowerCase().includes('trasera')
+        );
+        setSelectedCamera(backCamera ? backCamera.id : devices[0].id);
+      }
+    }).catch(err => {
+      console.error('Error obteniendo cámaras:', err);
+    });
+  }, []);
+
+  const startScanning = async () => {
+    if (!selectedCamera) {
+      alert('Por favor selecciona una cámara');
+      return;
+    }
+
+    try {
+      const html5QrCode = new Html5Qrcode('qr-reader');
+      scannerRef.current = html5QrCode;
+
+      await html5QrCode.start(
+        selectedCamera,
+        {
           fps: 10,
           qrbox: { width: 250, height: 250 },
-          aspectRatio: 1.0,
-          showTorchButtonIfSupported: true,
-          showZoomSliderIfSupported: true,
         },
-        false
+        onScanSuccess,
+        onScanError
       );
 
-      html5QrcodeScanner.render(onScanSuccess, onScanError);
-      setScanner(html5QrcodeScanner);
-
-      function onScanSuccess(decodedText) {
-        try {
-          const personaData = JSON.parse(decodedText);
-          setPersona(personaData);
-          setScanning(false);
-          html5QrcodeScanner.clear();
-        } catch (error) {
-          console.error('Error al parsear QR:', error);
-          alert('Código QR inválido. Intenta de nuevo.');
-        }
-      }
-
-      function onScanError(err) {
-        // Ignorar errores de escaneo continuo
-      }
-
-      // Ocultar elementos innecesarios de la UI del escáner
-      setTimeout(() => {
-        const selectCamera = document.getElementById('html5-qrcode-select-camera');
-        const button = document.getElementById('html5-qrcode-button-camera-permission');
-        const fileInput = document.getElementById('html5-qrcode-anchor-scan-type-change');
-        
-        if (selectCamera) selectCamera.style.display = 'none';
-        if (button) button.style.display = 'none';
-        if (fileInput) fileInput.style.display = 'none';
-      }, 100);
-
-      return () => {
-        html5QrcodeScanner.clear().catch(err => {
-          console.error('Error al limpiar escáner:', err);
-        });
-      };
+      setScannerStarted(true);
+    } catch (err) {
+      console.error('Error iniciando escáner:', err);
+      alert('Error al iniciar la cámara. Verifica los permisos.');
     }
-  }, [scanning]);
+  };
 
-  const handleReset = () => {
+  const stopScanning = async () => {
+    if (scannerRef.current && scannerStarted) {
+      try {
+        await scannerRef.current.stop();
+        setScannerStarted(false);
+      } catch (err) {
+        console.error('Error deteniendo escáner:', err);
+      }
+    }
+  };
+
+  const onScanSuccess = (decodedText) => {
+    try {
+      const personaData = JSON.parse(decodedText);
+      setPersona(personaData);
+      setScanning(false);
+      stopScanning();
+    } catch (error) {
+      console.error('Error al parsear QR:', error);
+      alert('Código QR inválido. Intenta de nuevo.');
+    }
+  };
+
+  const onScanError = (err) => {
+    // Ignorar errores de escaneo continuo
+  };
+
+  const handleReset = async () => {
+    await stopScanning();
     setPersona(null);
     setScanning(false);
-    if (scanner) {
-      scanner.clear();
-    }
+    setScannerStarted(false);
   };
 
   const handleManualInput = () => {
@@ -86,19 +107,26 @@ const QRScannerApp = ({ onVolver }) => {
     const fileInput = document.createElement('input');
     fileInput.type = 'file';
     fileInput.accept = 'image/*';
-    fileInput.onchange = (e) => {
+    fileInput.onchange = async (e) => {
       const file = e.target.files[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          // Aquí podrías procesar la imagen con un escáner de QR
-          alert('Función de escaneo de imagen próximamente');
-        };
-        reader.readAsDataURL(file);
+      if (file && scannerRef.current) {
+        try {
+          const result = await scannerRef.current.scanFile(file, true);
+          onScanSuccess(result);
+        } catch (err) {
+          alert('No se pudo leer el código QR de la imagen');
+        }
       }
     };
     fileInput.click();
   };
+
+  // Limpiar al desmontar
+  useEffect(() => {
+    return () => {
+      stopScanning();
+    };
+  }, []);
 
   // Vista: Mostrar información de la persona
   if (persona) {
@@ -149,7 +177,7 @@ const QRScannerApp = ({ onVolver }) => {
                 <InfoRow label="Último Pago" value={formatearFecha(persona.ultimoPago)} />
                 {dias !== null && (
                   <InfoRow 
-                    label="Días desde último pago" 
+                    label="Días transcurridos" 
                     value={`${dias} ${dias === 1 ? 'día' : 'días'}`} 
                   />
                 )}
@@ -247,14 +275,52 @@ const QRScannerApp = ({ onVolver }) => {
             </h2>
             
             <p className="text-center text-gray-600 mb-6">
-              Coloca el código QR frente a la cámara
+              {scannerStarted ? 'Coloca el código QR frente a la cámara' : 'Selecciona una cámara y comienza'}
             </p>
             
             {/* Área del escáner */}
-            <div id="qr-reader" className="rounded-xl overflow-hidden mb-6"></div>
+            <div id="qr-reader" className="rounded-xl overflow-hidden mb-6 bg-gray-100" style={{ minHeight: '250px' }}></div>
             
+            {/* Selector de cámara */}
+            {cameras.length > 0 && !scannerStarted && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Seleccionar Cámara:
+                </label>
+                <select
+                  value={selectedCamera}
+                  onChange={(e) => setSelectedCamera(e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                >
+                  {cameras.map((camera) => (
+                    <option key={camera.id} value={camera.id}>
+                      {camera.label || `Cámara ${camera.id}`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             {/* Botones de acción */}
             <div className="space-y-3">
+              {!scannerStarted ? (
+                <button
+                  onClick={startScanning}
+                  className="w-full flex items-center justify-center gap-2 bg-green-600 text-white px-4 py-4 rounded-lg hover:bg-green-700 transition font-bold text-lg shadow-md"
+                >
+                  <Video size={24} />
+                  Iniciar Escaneo
+                </button>
+              ) : (
+                <button
+                  onClick={stopScanning}
+                  className="w-full flex items-center justify-center gap-2 bg-red-600 text-white px-4 py-4 rounded-lg hover:bg-red-700 transition font-bold text-lg shadow-md"
+                >
+                  <XCircle size={24} />
+                  Detener Escaneo
+                </button>
+              )}
+
               <button
                 onClick={handleManualInput}
                 className="w-full flex items-center justify-center gap-2 bg-indigo-600 text-white px-4 py-3 rounded-lg hover:bg-indigo-700 transition font-medium shadow-md"
@@ -274,7 +340,7 @@ const QRScannerApp = ({ onVolver }) => {
 
             <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
               <p className="text-xs text-yellow-800">
-                <strong>💡 Consejo:</strong> Asegúrate de tener buena iluminación y mantén el código QR estable frente a la cámara.
+                <strong>💡 Consejo:</strong> Mantén el código QR estable y con buena iluminación para un escaneo rápido.
               </p>
             </div>
           </div>
@@ -315,7 +381,7 @@ const QRScannerApp = ({ onVolver }) => {
             className="w-full bg-gradient-to-r from-indigo-600 to-indigo-700 text-white px-6 py-5 rounded-xl hover:from-indigo-700 hover:to-indigo-800 transition font-bold text-xl shadow-lg"
           >
             <Camera size={24} className="inline mr-2" />
-            Iniciar Escaneo con Cámara
+            Abrir Escáner de Cámara
           </button>
 
           <button
@@ -340,10 +406,10 @@ const QRScannerApp = ({ onVolver }) => {
             📱 Instrucciones:
           </p>
           <ol className="text-sm text-indigo-800 space-y-1 list-decimal list-inside">
-            <li>Toca "Iniciar Escaneo con Cámara"</li>
-            <li>Permite acceso a la cámara si se solicita</li>
+            <li>Toca "Abrir Escáner de Cámara"</li>
+            <li>Selecciona la cámara que deseas usar</li>
+            <li>Presiona "Iniciar Escaneo"</li>
             <li>Apunta al código QR del cliente</li>
-            <li>La información se mostrará automáticamente</li>
           </ol>
         </div>
       </div>
