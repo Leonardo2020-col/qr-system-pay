@@ -320,22 +320,7 @@ const QRScannerApp = ({ onVolver }) => {
                   Detener Escaneo
                 </button>
               )}
-
-              <button
-                onClick={handleManualInput}
-                className="w-full flex items-center justify-center gap-2 bg-indigo-600 text-white px-4 py-3 rounded-lg hover:bg-indigo-700 transition font-medium shadow-md"
-              >
-                <Edit size={20} />
-                Ingresar código manualmente
-              </button>
-
-              <button
-                onClick={handleFileUpload}
-                className="w-full flex items-center justify-center gap-2 bg-gray-200 text-gray-700 px-4 py-3 rounded-lg hover:bg-gray-300 transition font-medium"
-              >
-                <Upload size={20} />
-                Subir imagen de QR
-              </button>
+              
             </div>
 
             <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
@@ -384,21 +369,6 @@ const QRScannerApp = ({ onVolver }) => {
             Abrir Escáner de Cámara
           </button>
 
-          <button
-            onClick={handleManualInput}
-            className="w-full flex items-center justify-center gap-2 bg-gray-200 text-gray-700 px-6 py-3 rounded-xl hover:bg-gray-300 transition font-medium"
-          >
-            <Edit size={20} />
-            Ingresar código manualmente
-          </button>
-
-          <button
-            onClick={handleFileUpload}
-            className="w-full flex items-center justify-center gap-2 bg-gray-200 text-gray-700 px-6 py-3 rounded-xl hover:bg-gray-300 transition font-medium"
-          >
-            <Upload size={20} />
-            Subir imagen de QR
-          </button>
         </div>
 
         <div className="mt-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-indigo-200 rounded-xl p-5">
