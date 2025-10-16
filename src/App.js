@@ -30,6 +30,7 @@ function App() {
   const [personaSeleccionada, setPersonaSeleccionada] = useState(null);
   const [estadoPago, setEstadoPago] = useState(false);
   const [mostrarEscaner, setMostrarEscaner] = useState(false);
+  const [generandoQR, setGenerandoQR] = useState(false);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -37,11 +38,19 @@ function App() {
     }
   }, [isAuthenticated, cargarPersonas]);
 
-  const handleGenerarQR = (persona, alDia) => {
-    const url = generarQRCode(persona, alDia);
-    setQrUrl(url);
-    setPersonaSeleccionada(persona);
-    setEstadoPago(alDia);
+  const handleGenerarQR = async (persona, alDia) => {
+    try {
+      setGenerandoQR(true);
+      const url = await generarQRCode(persona, alDia);
+      setQrUrl(url);
+      setPersonaSeleccionada(persona);
+      setEstadoPago(alDia);
+    } catch (error) {
+      console.error('Error generando QR:', error);
+      alert('Error al generar el código QR. Intenta de nuevo.');
+    } finally {
+      setGenerandoQR(false);
+    }
   };
 
   const handleAgregarPersona = async (persona) => {
@@ -251,11 +260,19 @@ function App() {
             <h2 className="text-lg md:text-xl lg:text-2xl font-bold text-gray-800 mb-4 md:mb-6">
               Código QR
             </h2>
-            <QRDisplay 
-              qrUrl={qrUrl} 
-              persona={personaSeleccionada} 
-              alDia={estadoPago}
-            />
+            
+            {generandoQR ? (
+              <div className="flex flex-col items-center justify-center py-12">
+                <RefreshCw className="animate-spin text-indigo-600 mb-4" size={48} />
+                <p className="text-gray-600 text-sm">Generando código QR...</p>
+              </div>
+            ) : (
+              <QRDisplay 
+                qrUrl={qrUrl} 
+                persona={personaSeleccionada} 
+                alDia={estadoPago}
+              />
+            )}
           </div>
         </div>
       </div>
