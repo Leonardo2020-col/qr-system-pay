@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
-import { CheckCircle, XCircle, ArrowLeft, Camera, Home, Upload, Edit, Video, User } from 'lucide-react';
+import { CheckCircle, XCircle, ArrowLeft, Camera, Home, Video, User } from 'lucide-react';
 import { verificarPagoAlDia, formatearFecha, diasDesdeUltimoPago } from '../utils/dateUtils';
 
 const QRScannerApp = ({ onVolver }) => {
@@ -12,6 +12,7 @@ const QRScannerApp = ({ onVolver }) => {
   const [selectedCamera, setSelectedCamera] = useState('');
   const [scannerStarted, setScannerStarted] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
   const scannerRef = useRef(null);
 
   // Obtener lista de cámaras disponibles
@@ -74,6 +75,7 @@ const QRScannerApp = ({ onVolver }) => {
       setPersona(personaData);
       setScanning(false);
       setImageError(false);
+      setImageLoaded(false);
       stopScanning();
     } catch (error) {
       console.error('Error al parsear QR:', error);
@@ -91,37 +93,7 @@ const QRScannerApp = ({ onVolver }) => {
     setScanning(false);
     setScannerStarted(false);
     setImageError(false);
-  };
-
-  const handleManualInput = () => {
-    const input = prompt('Pega el contenido del código QR (JSON):');
-    if (input) {
-      try {
-        const personaData = JSON.parse(input);
-        setPersona(personaData);
-        setImageError(false);
-      } catch (error) {
-        alert('Formato inválido. Debe ser un JSON válido.');
-      }
-    }
-  };
-
-  const handleFileUpload = () => {
-    const fileInput = document.createElement('input');
-    fileInput.type = 'file';
-    fileInput.accept = 'image/*';
-    fileInput.onchange = async (e) => {
-      const file = e.target.files[0];
-      if (file && scannerRef.current) {
-        try {
-          const result = await scannerRef.current.scanFile(file, true);
-          onScanSuccess(result);
-        } catch (err) {
-          alert('No se pudo leer el código QR de la imagen');
-        }
-      }
-    };
-    fileInput.click();
+    setImageLoaded(false);
   };
 
   // Limpiar al desmontar
@@ -132,81 +104,88 @@ const QRScannerApp = ({ onVolver }) => {
   }, []);
 
   // Vista: Mostrar información de la persona
-if (persona) {
-  const alDia = verificarPagoAlDia(persona.ultimoPago);
-  const dias = diasDesdeUltimoPago(persona.ultimoPago);
-  const tieneFoto = persona.foto && persona.foto.trim() !== '';
+  if (persona) {
+    const alDia = verificarPagoAlDia(persona.ultimoPago);
+    const dias = diasDesdeUltimoPago(persona.ultimoPago);
+    const tieneFoto = persona.foto && persona.foto.trim() !== '';
+    const esBase64 = tieneFoto && persona.foto.startsWith('data:image');
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      <div className="max-w-md mx-auto">
-        <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
-          {/* Header */}
-          <div className="bg-gradient-to-r from-indigo-600 to-indigo-700 p-6 text-white">
-            <div className="flex gap-2 mb-4">
-              <button
-                onClick={handleReset}
-                className="flex items-center gap-2 hover:opacity-80 transition bg-white/20 px-3 py-2 rounded-lg text-sm"
-              >
-                <ArrowLeft size={18} />
-                <span className="hidden sm:inline">Escanear otro</span>
-              </button>
-              {onVolver && (
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+        <div className="max-w-md mx-auto">
+          <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-indigo-600 to-indigo-700 p-6 text-white">
+              <div className="flex gap-2 mb-4">
                 <button
-                  onClick={onVolver}
+                  onClick={handleReset}
                   className="flex items-center gap-2 hover:opacity-80 transition bg-white/20 px-3 py-2 rounded-lg text-sm"
                 >
-                  <Home size={18} />
-                  <span className="hidden sm:inline">Inicio</span>
+                  <ArrowLeft size={18} />
+                  <span className="hidden sm:inline">Escanear otro</span>
                 </button>
-              )}
-            </div>
-            <h1 className="text-xl md:text-2xl font-bold">Información del Cliente</h1>
-          </div>
-
-          {/* Contenido */}
-          <div className="p-6 space-y-6">
-            {/* Foto y Nombre */}
-            <div className="text-center pb-4 border-b-2 border-gray-100">
-              {/* Foto del cliente */}
-              <div className="mb-4 flex justify-center">
-                {tieneFoto && !imageError ? (
-                  <div className="relative">
-                    <img 
-                      src={persona.foto} 
-                      alt={persona.nombre}
-                      className="w-32 h-32 rounded-full object-cover border-4 border-indigo-200 shadow-lg"
-                      onError={() => {
-                        console.error('Error cargando imagen:', persona.foto);
-                        setImageError(true);
-                      }}
-                      onLoad={() => {
-                        console.log('Imagen cargada correctamente');
-                      }}
-                      style={{ display: imageError ? 'none' : 'block' }}
-                    />
-                  </div>
-                ) : null}
-                
-                {/* Avatar con inicial - mostrar si no hay foto o hay error */}
-                {(!tieneFoto || imageError) && (
-                  <div className="w-32 h-32 rounded-full bg-gradient-to-br from-indigo-400 to-indigo-600 flex items-center justify-center text-white shadow-lg">
-                    {persona.nombre ? (
-                      <span className="text-5xl font-bold">
-                        {persona.nombre.charAt(0).toUpperCase()}
-                      </span>
-                    ) : (
-                      <User size={48} />
-                    )}
-                  </div>
+                {onVolver && (
+                  <button
+                    onClick={onVolver}
+                    className="flex items-center gap-2 hover:opacity-80 transition bg-white/20 px-3 py-2 rounded-lg text-sm"
+                  >
+                    <Home size={18} />
+                    <span className="hidden sm:inline">Inicio</span>
+                  </button>
                 )}
               </div>
-              
-              <h2 className="text-2xl md:text-3xl font-bold text-gray-800 mb-2">
-                {persona.nombre}
-              </h2>
-              <p className="text-gray-500 font-medium">DNI: {persona.dni}</p>
+              <h1 className="text-xl md:text-2xl font-bold">Información del Cliente</h1>
             </div>
+
+            {/* Contenido */}
+            <div className="p-6 space-y-6">
+              {/* Foto y Nombre */}
+              <div className="text-center pb-4 border-b-2 border-gray-100">
+                {/* Foto del cliente */}
+                <div className="mb-4 flex justify-center relative">
+                  {tieneFoto && !imageError ? (
+                    <>
+                      {/* Skeleton loader mientras carga */}
+                      {!imageLoaded && (
+                        <div className="w-32 h-32 rounded-full bg-gray-200 animate-pulse absolute"></div>
+                      )}
+                      <img 
+                        src={persona.foto} 
+                        alt={persona.nombre}
+                        className={`w-32 h-32 rounded-full object-cover border-4 border-indigo-200 shadow-lg transition-opacity duration-300 ${
+                          imageLoaded ? 'opacity-100' : 'opacity-0'
+                        }`}
+                        onError={(e) => {
+                          console.error('❌ Error cargando imagen');
+                          setImageError(true);
+                          setImageLoaded(true);
+                        }}
+                        onLoad={() => {
+                          console.log('✅ Imagen cargada correctamente');
+                          setImageError(false);
+                          setImageLoaded(true);
+                        }}
+                      />
+                    </>
+                  ) : (
+                    // Avatar con inicial si no hay foto o hay error
+                    <div className="w-32 h-32 rounded-full bg-gradient-to-br from-indigo-400 to-indigo-600 flex items-center justify-center text-white shadow-lg">
+                      {persona.nombre ? (
+                        <span className="text-5xl font-bold">
+                          {persona.nombre.charAt(0).toUpperCase()}
+                        </span>
+                      ) : (
+                        <User size={48} />
+                      )}
+                    </div>
+                  )}
+                </div>
+                
+                <h2 className="text-2xl md:text-3xl font-bold text-gray-800 mb-2">
+                  {persona.nombre}
+                </h2>
+                <p className="text-gray-500 font-medium">DNI: {persona.dni}</p>
+              </div>
 
               {/* Información detallada */}
               <div className="space-y-3">
