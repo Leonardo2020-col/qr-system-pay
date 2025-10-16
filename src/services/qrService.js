@@ -1,6 +1,4 @@
-// src/services/qrService.js
-
-const QRCode = require('qrcode');
+// src/services/qrService.js - SIN DEPENDENCIAS
 
 export const generarQRCode = async (persona, alDia) => {
   // Crear datos del QR SIN la foto
@@ -16,62 +14,57 @@ export const generarQRCode = async (persona, alDia) => {
   };
 
   const textoQR = JSON.stringify(datosQR);
-  
+  console.log('📊 Generando QR con', textoQR.length, 'caracteres');
+
   try {
-    // Primero intentar con la librería local
-    const qrDataUrl = await QRCode.toDataURL(textoQR, {
-      width: 400,
-      margin: 2,
-      color: {
-        dark: '#4F46E5',
-        light: '#FFFFFF'
-      },
-      errorCorrectionLevel: 'M'
-    });
-    
-    console.log('✅ QR generado localmente');
-    return qrDataUrl;
-  } catch (error) {
-    console.warn('⚠️ Error con librería local, usando API externa');
-    
-    // Fallback: Usar QuickChart API (sin límites y gratis)
+    // Usar QuickChart API (gratis, sin límites, rápido)
     const encodedData = encodeURIComponent(textoQR);
-    const qrUrl = `https://quickchart.io/qr?text=${encodedData}&size=400&margin=2&dark=4F46E5&light=FFFFFF`;
+    const qrUrl = `https://quickchart.io/qr?text=${encodedData}&size=400&margin=2&dark=4F46E5&light=FFFFFF&ecLevel=M`;
     
     console.log('✅ QR generado con QuickChart API');
     return qrUrl;
+  } catch (error) {
+    console.error('❌ Error generando QR:', error);
+    throw error;
   }
 };
 
 export const descargarQR = async (qrUrl, nombreArchivo) => {
   try {
-    // Si es una URL (API externa), descargar la imagen primero
-    if (qrUrl.startsWith('http')) {
-      const response = await fetch(qrUrl);
-      const blob = await response.blob();
-      const blobUrl = URL.createObjectURL(blob);
+    // Crear un canvas para convertir la imagen a blob
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
       
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = nombreArchivo;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
       
-      // Limpiar el blob URL
-      setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
-    } else {
-      // Si es Base64, descargar directamente
-      const link = document.createElement('a');
-      link.href = qrUrl;
-      link.download = nombreArchivo;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    }
+      canvas.toBlob((blob) => {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = nombreArchivo;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }, 'image/png');
+    };
+    
+    img.onerror = () => {
+      // Fallback: abrir en nueva pestaña
+      window.open(qrUrl, '_blank');
+    };
+    
+    img.src = qrUrl;
   } catch (error) {
     console.error('Error descargando QR:', error);
-    alert('Error al descargar el código QR');
+    // Fallback: abrir en nueva pestaña
+    window.open(qrUrl, '_blank');
   }
 };
 
