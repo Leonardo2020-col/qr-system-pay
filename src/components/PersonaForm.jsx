@@ -4,6 +4,8 @@ import React, { useState } from 'react';
 import { Upload, X, Camera } from 'lucide-react';
 import { validarPersona } from '../utils/validators';
 import { obtenerFechaActual } from '../utils/dateUtils';
+import { comprimirImagen, validarTamañoImagen } from '../utils/imageUtils';
+
 
 const PersonaForm = ({ onAgregar, onCancelar }) => {
   const [persona, setPersona] = useState({
@@ -29,37 +31,44 @@ const PersonaForm = ({ onAgregar, onCancelar }) => {
     }
   };
 
-  const handleImagenChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      // Validar tamaño (máximo 500KB para no saturar Google Sheets)
-      if (file.size > 500000) {
-        alert('La imagen es muy grande. Por favor, usa una imagen menor a 500KB.');
-        return;
-      }
-
-      // Validar tipo
-      if (!file.type.startsWith('image/')) {
-        alert('Por favor selecciona una imagen válida.');
-        return;
-      }
-
-      setSubiendo(true);
-
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64String = reader.result;
-        setPersona({ ...persona, foto: base64String });
-        setPrevisualizacion(base64String);
-        setSubiendo(false);
-      };
-      reader.onerror = () => {
-        alert('Error al leer la imagen');
-        setSubiendo(false);
-      };
-      reader.readAsDataURL(file);
+  const handleImagenChange = async (e) => {
+  const file = e.target.files[0];
+  if (file) {
+    // Validar tamaño original (máximo 2MB)
+    if (file.size > 2000000) {
+      alert('La imagen es muy grande. Por favor, usa una imagen menor a 2MB.');
+      return;
     }
-  };
+
+    // Validar tipo
+    if (!file.type.startsWith('image/')) {
+      alert('Por favor selecciona una imagen válida.');
+      return;
+    }
+
+    setSubiendo(true);
+
+    try {
+      // Comprimir imagen
+      const base64Comprimido = await comprimirImagen(file, 150, 0.6);
+      
+      // Validar tamaño final
+      if (!validarTamañoImagen(base64Comprimido, 25)) {
+        alert('La imagen sigue siendo muy grande después de la compresión. Intenta con una imagen más pequeña.');
+        setSubiendo(false);
+        return;
+      }
+      
+      setPersona({ ...persona, foto: base64Comprimido });
+      setPrevisualizacion(base64Comprimido);
+      setSubiendo(false);
+    } catch (error) {
+      console.error('Error procesando imagen:', error);
+      alert('Error al procesar la imagen');
+      setSubiendo(false);
+    }
+  }
+};
 
   const handleTomarFoto = () => {
     const input = document.createElement('input');
@@ -100,7 +109,7 @@ const PersonaForm = ({ onAgregar, onCancelar }) => {
     setPrevisualizacion('');
     setErrores({});
   };
-
+  
   return (
     <div className="bg-gray-50 p-6 rounded-xl">
       <h3 className="text-lg font-semibold mb-4">Nueva Persona</h3>
@@ -157,7 +166,7 @@ const PersonaForm = ({ onAgregar, onCancelar }) => {
           )}
           
           <p className="text-xs text-gray-500 mt-2">
-            Tamaño máximo: 500KB. Formatos: JPG, PNG, GIF
+          La imagen se comprimirá automáticamente. Tamaño recomendado: menor a 1MB
           </p>
         </div>
 
