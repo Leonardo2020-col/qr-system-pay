@@ -1,6 +1,6 @@
 // src/services/qrService.js
 
-import QRCode from 'qrcode';
+const QRCode = require('qrcode');
 
 export const generarQRCode = async (persona, alDia) => {
   // Crear datos del QR SIN la foto para reducir tamaño
