@@ -143,98 +143,101 @@ class GoogleSheetsService {
     return this.isSignedIn && this.accessToken !== null;
   }
 
-  // Leer personas
+  // Leer personas con fotos
   async leerPersonas() {
-    if (!GOOGLE_CONFIG.spreadsheetId) {
-      throw new Error('Falta SPREADSHEET_ID en .env');
-    }
-
-    if (!this.isSignedIn) {
-      throw new Error('No autenticado');
-    }
-
-    try {
-      const response = await window.gapi.client.sheets.spreadsheets.values.get({
-        spreadsheetId: GOOGLE_CONFIG.spreadsheetId,
-        range: DATA_RANGE,
-      });
-
-      const rows = response.result.values || [];
-      
-      return rows.map((row, index) => ({
-        id: index + 1,
-        nombre: row[0] || '',
-        dni: row[1] || '',
-        email: row[2] || '',
-        telefono: row[3] || '',
-        ultimoPago: row[4] || '',
-        monto: parseFloat(row[5]) || 0,
-      }));
-    } catch (error) {
-      console.error('❌ Error leyendo datos:', error);
-      throw error;
-    }
+  if (!GOOGLE_CONFIG.spreadsheetId) {
+    throw new Error('Falta SPREADSHEET_ID en .env');
   }
+
+  if (!this.isSignedIn) {
+    throw new Error('No autenticado');
+  }
+
+  try {
+    const response = await window.gapi.client.sheets.spreadsheets.values.get({
+      spreadsheetId: GOOGLE_CONFIG.spreadsheetId,
+      range: DATA_RANGE,
+    });
+
+    const rows = response.result.values || [];
+    
+    return rows.map((row, index) => ({
+      id: index + 1,
+      nombre: row[0] || '',
+      dni: row[1] || '',
+      email: row[2] || '',
+      telefono: row[3] || '',
+      ultimoPago: row[4] || '',
+      monto: parseFloat(row[5]) || 0,
+      foto: row[6] || '',  // Nueva columna foto
+    }));
+  } catch (error) {
+    console.error('❌ Error leyendo datos:', error);
+    throw error;
+  }
+}
 
   // Agregar persona
-  async agregarPersona(persona) {
-    const values = [
-      [
-        persona.nombre,
-        persona.dni,
-        persona.email,
-        persona.telefono,
-        persona.ultimoPago,
-        persona.monto,
-      ],
-    ];
+async agregarPersona(persona) {
+  const values = [
+    [
+      persona.nombre,
+      persona.dni,
+      persona.email,
+      persona.telefono,
+      persona.ultimoPago,
+      persona.monto,
+      persona.foto || '',  // Nueva columna foto
+    ],
+  ];
 
-    try {
-      const response = await window.gapi.client.sheets.spreadsheets.values.append({
-        spreadsheetId: GOOGLE_CONFIG.spreadsheetId,
-        range: `${SHEET_NAME}!A:F`,
-        valueInputOption: 'USER_ENTERED',
-        resource: { values },
-      });
+  try {
+    const response = await window.gapi.client.sheets.spreadsheets.values.append({
+      spreadsheetId: GOOGLE_CONFIG.spreadsheetId,
+      range: `${SHEET_NAME}!A:G`,  // Cambiado de A:F a A:G
+      valueInputOption: 'USER_ENTERED',
+      resource: { values },
+    });
 
-      console.log('✅ Persona agregada');
-      return response.result;
-    } catch (error) {
-      console.error('❌ Error agregando persona:', error);
-      throw error;
-    }
+    console.log('✅ Persona agregada');
+    return response.result;
+  } catch (error) {
+    console.error('❌ Error agregando persona:', error);
+    throw error;
   }
+}
 
   // Actualizar persona
   async actualizarPersona(rowIndex, persona) {
-    const values = [
-      [
-        persona.nombre,
-        persona.dni,
-        persona.email,
-        persona.telefono,
-        persona.ultimoPago,
-        persona.monto,
-      ],
-    ];
+  const values = [
+    [
+      persona.nombre,
+      persona.dni,
+      persona.email,
+      persona.telefono,
+      persona.ultimoPago,
+      persona.monto,
+      persona.foto || '',  // Nueva columna foto
+    ],
+  ];
 
-    const range = `${SHEET_NAME}!A${rowIndex + 2}:F${rowIndex + 2}`;
+  const range = `${SHEET_NAME}!A${rowIndex + 2}:G${rowIndex + 2}`;  // Cambiado de F a G
 
-    try {
-      const response = await window.gapi.client.sheets.spreadsheets.values.update({
-        spreadsheetId: GOOGLE_CONFIG.spreadsheetId,
-        range: range,
-        valueInputOption: 'USER_ENTERED',
-        resource: { values },
-      });
+  try {
+    const response = await window.gapi.client.sheets.spreadsheets.values.update({
+      spreadsheetId: GOOGLE_CONFIG.spreadsheetId,
+      range: range,
+      valueInputOption: 'USER_ENTERED',
+      resource: { values },
+    });
 
-      console.log('✅ Persona actualizada');
-      return response.result;
-    } catch (error) {
-      console.error('❌ Error actualizando persona:', error);
-      throw error;
-    }
+    console.log('✅ Persona actualizada');
+    return response.result;
+  } catch (error) {
+    console.error('❌ Error actualizando persona:', error);
+    throw error;
   }
+}
 
   // Eliminar persona
   async eliminarPersona(rowIndex) {

@@ -8,6 +8,7 @@ export const generarQRCode = (persona, alDia) => {
     telefono: persona.telefono,
     ultimoPago: persona.ultimoPago,
     monto: persona.monto,
+    foto: persona.foto || '',  // Agregar foto
     estado: alDia ? 'AL DÍA' : 'PENDIENTE',
     fechaGeneracion: new Date().toISOString(),
   };

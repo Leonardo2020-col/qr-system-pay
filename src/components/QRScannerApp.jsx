@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
-import { CheckCircle, XCircle, ArrowLeft, Camera, Home, Upload, Edit, Video } from 'lucide-react';
+import { CheckCircle, XCircle, ArrowLeft, Camera, Home, Upload, Edit, Video, User } from 'lucide-react';
 import { verificarPagoAlDia, formatearFecha, diasDesdeUltimoPago } from '../utils/dateUtils';
 
 const QRScannerApp = ({ onVolver }) => {
@@ -11,6 +11,7 @@ const QRScannerApp = ({ onVolver }) => {
   const [cameras, setCameras] = useState([]);
   const [selectedCamera, setSelectedCamera] = useState('');
   const [scannerStarted, setScannerStarted] = useState(false);
+  const [imageError, setImageError] = useState(false);
   const scannerRef = useRef(null);
 
   // Obtener lista de cámaras disponibles
@@ -18,7 +19,6 @@ const QRScannerApp = ({ onVolver }) => {
     Html5Qrcode.getCameras().then(devices => {
       if (devices && devices.length) {
         setCameras(devices);
-        // Seleccionar la cámara trasera por defecto
         const backCamera = devices.find(d => 
           d.label.toLowerCase().includes('back') || 
           d.label.toLowerCase().includes('trasera')
@@ -73,6 +73,7 @@ const QRScannerApp = ({ onVolver }) => {
       const personaData = JSON.parse(decodedText);
       setPersona(personaData);
       setScanning(false);
+      setImageError(false);
       stopScanning();
     } catch (error) {
       console.error('Error al parsear QR:', error);
@@ -89,6 +90,7 @@ const QRScannerApp = ({ onVolver }) => {
     setPersona(null);
     setScanning(false);
     setScannerStarted(false);
+    setImageError(false);
   };
 
   const handleManualInput = () => {
@@ -97,6 +99,7 @@ const QRScannerApp = ({ onVolver }) => {
       try {
         const personaData = JSON.parse(input);
         setPersona(personaData);
+        setImageError(false);
       } catch (error) {
         alert('Formato inválido. Debe ser un JSON válido.');
       }
@@ -132,6 +135,7 @@ const QRScannerApp = ({ onVolver }) => {
   if (persona) {
     const alDia = verificarPagoAlDia(persona.ultimoPago);
     const dias = diasDesdeUltimoPago(persona.ultimoPago);
+    const tieneFoto = persona.foto && persona.foto.trim() !== '';
 
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
@@ -142,29 +146,52 @@ const QRScannerApp = ({ onVolver }) => {
               <div className="flex gap-2 mb-4">
                 <button
                   onClick={handleReset}
-                  className="flex items-center gap-2 hover:opacity-80 transition bg-white/20 px-3 py-2 rounded-lg"
+                  className="flex items-center gap-2 hover:opacity-80 transition bg-white/20 px-3 py-2 rounded-lg text-sm"
                 >
-                  <ArrowLeft size={20} />
-                  Escanear otro
+                  <ArrowLeft size={18} />
+                  <span className="hidden sm:inline">Escanear otro</span>
                 </button>
                 {onVolver && (
                   <button
                     onClick={onVolver}
-                    className="flex items-center gap-2 hover:opacity-80 transition bg-white/20 px-3 py-2 rounded-lg"
+                    className="flex items-center gap-2 hover:opacity-80 transition bg-white/20 px-3 py-2 rounded-lg text-sm"
                   >
-                    <Home size={20} />
-                    Inicio
+                    <Home size={18} />
+                    <span className="hidden sm:inline">Inicio</span>
                   </button>
                 )}
               </div>
-              <h1 className="text-2xl font-bold">Información del Cliente</h1>
+              <h1 className="text-xl md:text-2xl font-bold">Información del Cliente</h1>
             </div>
 
             {/* Contenido */}
             <div className="p-6 space-y-6">
-              {/* Nombre */}
+              {/* Foto y Nombre */}
               <div className="text-center pb-4 border-b-2 border-gray-100">
-                <h2 className="text-3xl font-bold text-gray-800 mb-2">
+                {/* Foto del cliente */}
+                <div className="mb-4">
+                  {tieneFoto && !imageError ? (
+                    <img 
+                      src={persona.foto} 
+                      alt={persona.nombre}
+                      className="w-32 h-32 rounded-full mx-auto object-cover border-4 border-indigo-200 shadow-lg"
+                      onError={() => setImageError(true)}
+                    />
+                  ) : (
+                    // Avatar con inicial si no hay foto o error
+                    <div className="w-32 h-32 rounded-full mx-auto bg-gradient-to-br from-indigo-400 to-indigo-600 flex items-center justify-center text-white shadow-lg">
+                      {persona.nombre ? (
+                        <span className="text-5xl font-bold">
+                          {persona.nombre.charAt(0).toUpperCase()}
+                        </span>
+                      ) : (
+                        <User size={48} />
+                      )}
+                    </div>
+                  )}
+                </div>
+                
+                <h2 className="text-2xl md:text-3xl font-bold text-gray-800 mb-2">
                   {persona.nombre}
                 </h2>
                 <p className="text-gray-500 font-medium">DNI: {persona.dni}</p>
@@ -172,7 +199,9 @@ const QRScannerApp = ({ onVolver }) => {
 
               {/* Información detallada */}
               <div className="space-y-3">
-                <InfoRow label="Email" value={persona.email} />
+                {persona.email && persona.email.trim() !== '' && (
+                  <InfoRow label="Email" value={persona.email} />
+                )}
                 <InfoRow label="Teléfono" value={persona.telefono} />
                 <InfoRow label="Último Pago" value={formatearFecha(persona.ultimoPago)} />
                 {dias !== null && (
@@ -185,33 +214,33 @@ const QRScannerApp = ({ onVolver }) => {
               </div>
 
               {/* Estado de pago */}
-              <div className={`rounded-2xl p-8 text-center shadow-lg ${
+              <div className={`rounded-2xl p-6 md:p-8 text-center shadow-lg ${
                 alDia 
                   ? 'bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-400' 
                   : 'bg-gradient-to-br from-red-50 to-red-100 border-2 border-red-400'
               }`}>
                 {alDia ? (
                   <>
-                    <CheckCircle size={64} className="mx-auto text-green-600 mb-4" />
-                    <h3 className="text-3xl font-bold text-green-800 mb-2">
+                    <CheckCircle size={56} className="mx-auto text-green-600 mb-3 md:mb-4" />
+                    <h3 className="text-2xl md:text-3xl font-bold text-green-800 mb-2">
                       ¡PAGOS AL DÍA!
                     </h3>
-                    <p className="text-green-700 font-medium text-lg">
+                    <p className="text-green-700 font-medium text-base md:text-lg">
                       Cliente en situación regular
                     </p>
                   </>
                 ) : (
                   <>
-                    <XCircle size={64} className="mx-auto text-red-600 mb-4" />
-                    <h3 className="text-3xl font-bold text-red-800 mb-2">
+                    <XCircle size={56} className="mx-auto text-red-600 mb-3 md:mb-4" />
+                    <h3 className="text-2xl md:text-3xl font-bold text-red-800 mb-2">
                       PAGO PENDIENTE
                     </h3>
-                    <p className="text-red-700 font-medium text-lg">
+                    <p className="text-red-700 font-medium text-base md:text-lg">
                       Requiere actualización de pago
                     </p>
                     {dias > 30 && (
                       <div className="mt-4 bg-red-200 rounded-lg p-3">
-                        <p className="text-red-800 text-xl font-bold">
+                        <p className="text-red-800 text-lg md:text-xl font-bold">
                           ⚠️ Mora: {dias - 30} días
                         </p>
                       </div>
@@ -320,7 +349,6 @@ const QRScannerApp = ({ onVolver }) => {
                   Detener Escaneo
                 </button>
               )}
-              
             </div>
 
             <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
@@ -368,7 +396,6 @@ const QRScannerApp = ({ onVolver }) => {
             <Camera size={24} className="inline mr-2" />
             Abrir Escáner de Cámara
           </button>
-
         </div>
 
         <div className="mt-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-indigo-200 rounded-xl p-5">
@@ -390,8 +417,8 @@ const QRScannerApp = ({ onVolver }) => {
 // Componente auxiliar para filas de información
 const InfoRow = ({ label, value, large }) => (
   <div className="flex justify-between items-center py-3 border-b border-gray-100">
-    <span className="text-gray-600 font-medium">{label}:</span>
-    <span className={`font-bold text-gray-800 text-right ${large ? 'text-2xl text-indigo-600' : 'text-base'}`}>
+    <span className="text-gray-600 font-medium text-sm md:text-base">{label}:</span>
+    <span className={`font-bold text-gray-800 text-right ${large ? 'text-xl md:text-2xl text-indigo-600' : 'text-sm md:text-base'} break-words max-w-[60%]`}>
       {value}
     </span>
   </div>

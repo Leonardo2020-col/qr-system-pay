@@ -19,10 +19,11 @@ export const COLUMNS = {
   TELEFONO: 'D',
   ULTIMO_PAGO: 'E',
   MONTO: 'F',
+  FOTO: 'G',
 };
 
 // Rango completo para leer datos
-export const DATA_RANGE = `${SHEET_NAME}!A2:F`;
+export const DATA_RANGE = `${SHEET_NAME}!A2:G`;
 
 // Headers de la hoja
-export const HEADERS = ['Nombre', 'DNI', 'Email', 'Telefono', 'UltimoPago', 'Monto'];
+export const HEADERS = ['Nombre', 'DNI', 'Email', 'Telefono', 'UltimoPago', 'Monto', 'Foto'];
