@@ -132,70 +132,81 @@ const QRScannerApp = ({ onVolver }) => {
   }, []);
 
   // Vista: Mostrar información de la persona
-  if (persona) {
-    const alDia = verificarPagoAlDia(persona.ultimoPago);
-    const dias = diasDesdeUltimoPago(persona.ultimoPago);
-    const tieneFoto = persona.foto && persona.foto.trim() !== '';
+if (persona) {
+  const alDia = verificarPagoAlDia(persona.ultimoPago);
+  const dias = diasDesdeUltimoPago(persona.ultimoPago);
+  const tieneFoto = persona.foto && persona.foto.trim() !== '';
 
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-        <div className="max-w-md mx-auto">
-          <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
-            {/* Header */}
-            <div className="bg-gradient-to-r from-indigo-600 to-indigo-700 p-6 text-white">
-              <div className="flex gap-2 mb-4">
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+      <div className="max-w-md mx-auto">
+        <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
+          {/* Header */}
+          <div className="bg-gradient-to-r from-indigo-600 to-indigo-700 p-6 text-white">
+            <div className="flex gap-2 mb-4">
+              <button
+                onClick={handleReset}
+                className="flex items-center gap-2 hover:opacity-80 transition bg-white/20 px-3 py-2 rounded-lg text-sm"
+              >
+                <ArrowLeft size={18} />
+                <span className="hidden sm:inline">Escanear otro</span>
+              </button>
+              {onVolver && (
                 <button
-                  onClick={handleReset}
+                  onClick={onVolver}
                   className="flex items-center gap-2 hover:opacity-80 transition bg-white/20 px-3 py-2 rounded-lg text-sm"
                 >
-                  <ArrowLeft size={18} />
-                  <span className="hidden sm:inline">Escanear otro</span>
+                  <Home size={18} />
+                  <span className="hidden sm:inline">Inicio</span>
                 </button>
-                {onVolver && (
-                  <button
-                    onClick={onVolver}
-                    className="flex items-center gap-2 hover:opacity-80 transition bg-white/20 px-3 py-2 rounded-lg text-sm"
-                  >
-                    <Home size={18} />
-                    <span className="hidden sm:inline">Inicio</span>
-                  </button>
-                )}
-              </div>
-              <h1 className="text-xl md:text-2xl font-bold">Información del Cliente</h1>
+              )}
             </div>
+            <h1 className="text-xl md:text-2xl font-bold">Información del Cliente</h1>
+          </div>
 
-            {/* Contenido */}
-            <div className="p-6 space-y-6">
-              {/* Foto y Nombre */}
-              <div className="text-center pb-4 border-b-2 border-gray-100">
-                {/* Foto del cliente */}
-                <div className="mb-4">
-                  {tieneFoto && !imageError ? (
+          {/* Contenido */}
+          <div className="p-6 space-y-6">
+            {/* Foto y Nombre */}
+            <div className="text-center pb-4 border-b-2 border-gray-100">
+              {/* Foto del cliente */}
+              <div className="mb-4 flex justify-center">
+                {tieneFoto && !imageError ? (
+                  <div className="relative">
                     <img 
                       src={persona.foto} 
                       alt={persona.nombre}
-                      className="w-32 h-32 rounded-full mx-auto object-cover border-4 border-indigo-200 shadow-lg"
-                      onError={() => setImageError(true)}
+                      className="w-32 h-32 rounded-full object-cover border-4 border-indigo-200 shadow-lg"
+                      onError={() => {
+                        console.error('Error cargando imagen:', persona.foto);
+                        setImageError(true);
+                      }}
+                      onLoad={() => {
+                        console.log('Imagen cargada correctamente');
+                      }}
+                      style={{ display: imageError ? 'none' : 'block' }}
                     />
-                  ) : (
-                    // Avatar con inicial si no hay foto o error
-                    <div className="w-32 h-32 rounded-full mx-auto bg-gradient-to-br from-indigo-400 to-indigo-600 flex items-center justify-center text-white shadow-lg">
-                      {persona.nombre ? (
-                        <span className="text-5xl font-bold">
-                          {persona.nombre.charAt(0).toUpperCase()}
-                        </span>
-                      ) : (
-                        <User size={48} />
-                      )}
-                    </div>
-                  )}
-                </div>
+                  </div>
+                ) : null}
                 
-                <h2 className="text-2xl md:text-3xl font-bold text-gray-800 mb-2">
-                  {persona.nombre}
-                </h2>
-                <p className="text-gray-500 font-medium">DNI: {persona.dni}</p>
+                {/* Avatar con inicial - mostrar si no hay foto o hay error */}
+                {(!tieneFoto || imageError) && (
+                  <div className="w-32 h-32 rounded-full bg-gradient-to-br from-indigo-400 to-indigo-600 flex items-center justify-center text-white shadow-lg">
+                    {persona.nombre ? (
+                      <span className="text-5xl font-bold">
+                        {persona.nombre.charAt(0).toUpperCase()}
+                      </span>
+                    ) : (
+                      <User size={48} />
+                    )}
+                  </div>
+                )}
               </div>
+              
+              <h2 className="text-2xl md:text-3xl font-bold text-gray-800 mb-2">
+                {persona.nombre}
+              </h2>
+              <p className="text-gray-500 font-medium">DNI: {persona.dni}</p>
+            </div>
 
               {/* Información detallada */}
               <div className="space-y-3">
