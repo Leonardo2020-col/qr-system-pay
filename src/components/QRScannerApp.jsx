@@ -69,19 +69,22 @@ const QRScannerApp = ({ onVolver }) => {
     }
   };
 
-  const onScanSuccess = (decodedText) => {
-    try {
-      const personaData = JSON.parse(decodedText);
-      setPersona(personaData);
-      setScanning(false);
-      setImageError(false);
-      setImageLoaded(false);
-      stopScanning();
-    } catch (error) {
-      console.error('Error al parsear QR:', error);
-      alert('Código QR inválido. Intenta de nuevo.');
-    }
-  };
+  const onScanSuccess = async (decodedText) => {
+  try {
+    const personaData = JSON.parse(decodedText);
+    
+    // Si está autenticado y tiene acceso a Google Sheets, buscar la foto
+    // Por ahora, simplemente mostramos sin foto
+    setPersona(personaData);
+    setScanning(false);
+    setImageError(false);
+    setImageLoaded(false);
+    stopScanning();
+  } catch (error) {
+    console.error('Error al parsear QR:', error);
+    alert('Código QR inválido. Intenta de nuevo.');
+  }
+};
 
   const onScanError = (err) => {
     // Ignorar errores de escaneo continuo
