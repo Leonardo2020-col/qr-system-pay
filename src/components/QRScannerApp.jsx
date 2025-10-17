@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { CheckCircle, XCircle, ArrowLeft, Camera, Home, Video, User } from 'lucide-react';
+import supabaseService from '../services/supabaseService';
 
 const QRScannerApp = ({ onVolver }) => {
   const [persona, setPersona] = useState(null);
@@ -70,6 +71,18 @@ const QRScannerApp = ({ onVolver }) => {
   const onScanSuccess = async (decodedText) => {
     try {
       const personaData = JSON.parse(decodedText);
+      
+      // Buscar la foto en Supabase usando el DNI
+      console.log('🔍 Buscando foto para DNI:', personaData.dni);
+      const personaCompleta = await supabaseService.buscarPorDNI(personaData.dni);
+      
+      if (personaCompleta && personaCompleta.foto_url) {
+        personaData.foto = personaCompleta.foto_url;
+        console.log('✅ Foto encontrada:', personaCompleta.foto_url);
+      } else {
+        console.log('⚠️ No se encontró foto para este DNI');
+      }
+      
       setPersona(personaData);
       setScanning(false);
       setImageError(false);
@@ -104,6 +117,7 @@ const QRScannerApp = ({ onVolver }) => {
   if (persona) {
     const empadronado = persona.empadronado || false;
     const tieneFoto = persona.foto && persona.foto.trim() !== '';
+    const esUrlSupabase = tieneFoto && (persona.foto.includes('supabase') || persona.foto.startsWith('http'));
 
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
@@ -139,17 +153,18 @@ const QRScannerApp = ({ onVolver }) => {
                 <div className="mb-4 flex justify-center relative">
                   {tieneFoto && !imageError ? (
                     <>
+                      {/* Skeleton loader mientras carga */}
                       {!imageLoaded && (
-                        <div className="w-32 h-32 rounded-full bg-gray-200 animate-pulse absolute"></div>
+                        <div className="w-32 h-32 rounded-full bg-gray-200 animate-pulse"></div>
                       )}
                       <img 
                         src={persona.foto} 
                         alt={persona.nombre}
                         className={`w-32 h-32 rounded-full object-cover border-4 border-indigo-200 shadow-lg transition-opacity duration-300 ${
-                          imageLoaded ? 'opacity-100' : 'opacity-0'
+                          imageLoaded ? 'opacity-100' : 'opacity-0 absolute'
                         }`}
                         onError={(e) => {
-                          console.error('❌ Error cargando imagen');
+                          console.error('❌ Error cargando imagen:', persona.foto);
                           setImageError(true);
                           setImageLoaded(true);
                         }}
