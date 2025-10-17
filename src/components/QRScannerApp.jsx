@@ -214,9 +214,31 @@ const QRScannerApp = ({ onVolver }) => {
                 {/* DEBUG: Mostrar info de foto */}
                 {tieneFoto && (
                   <div className="mb-2 text-xs bg-yellow-50 p-2 rounded">
-                    <p>🔍 Debug - Tiene foto: {tieneFoto ? 'Sí' : 'No'}</p>
-                    <p className="break-all">URL: {persona.foto?.substring(0, 50)}...</p>
+                    <p className="font-bold mb-1">🔍 Debug Info:</p>
+                    <p>Tiene foto: {tieneFoto ? 'Sí' : 'No'}</p>
+                    <p className="break-all text-[10px]">URL completa: {persona.foto}</p>
                     <p>Error: {imageError ? 'Sí' : 'No'} | Cargada: {imageLoaded ? 'Sí' : 'No'}</p>
+                    <button
+                      onClick={() => window.open(persona.foto, '_blank')}
+                      className="mt-2 bg-blue-500 text-white px-2 py-1 rounded text-xs"
+                    >
+                      Abrir URL en nueva pestaña
+                    </button>
+                    <button
+                      onClick={() => {
+                        setImageLoaded(false);
+                        setImageError(false);
+                        setTimeout(() => {
+                          const img = document.querySelector('img[alt="' + persona.nombre + '"]');
+                          if (img) {
+                            img.src = persona.foto + '?t=' + Date.now();
+                          }
+                        }, 100);
+                      }}
+                      className="mt-2 ml-2 bg-green-500 text-white px-2 py-1 rounded text-xs"
+                    >
+                      Forzar recarga
+                    </button>
                   </div>
                 )}
                 
@@ -228,11 +250,11 @@ const QRScannerApp = ({ onVolver }) => {
                         <div className="w-32 h-32 rounded-full bg-gray-300 animate-pulse"></div>
                       )}
                       
-                      {/* Imagen */}
+                      {/* Imagen - Usar objeto Image para precargar */}
                       <img 
-                        src={persona.foto} 
+                        src={persona.foto}
                         alt={persona.nombre}
-                        crossOrigin="anonymous"
+                        referrerPolicy="no-referrer"
                         style={{
                           display: imageLoaded ? 'block' : 'none',
                           width: '128px',
@@ -245,15 +267,26 @@ const QRScannerApp = ({ onVolver }) => {
                         onError={(e) => {
                           console.error('❌ Error cargando imagen:', e);
                           console.error('❌ URL que falló:', persona.foto);
+                          console.error('❌ Natural dimensions:', e.target.naturalWidth, 'x', e.target.naturalHeight);
                           setImageError(true);
                           setImageLoaded(true);
                         }}
-                        onLoad={() => {
+                        onLoad={(e) => {
                           console.log('✅ Imagen cargada exitosamente');
+                          console.log('✅ Dimensiones:', e.target.naturalWidth, 'x', e.target.naturalHeight);
                           setImageError(false);
                           setImageLoaded(true);
                         }}
                       />
+                      
+                      {/* Timeout manual - Si después de 10s no carga, mostrar error */}
+                      {!imageLoaded && tieneFoto && setTimeout(() => {
+                        if (!imageLoaded) {
+                          console.warn('⏱️ Timeout: La imagen tardó demasiado en cargar');
+                          setImageError(true);
+                          setImageLoaded(true);
+                        }
+                      }, 10000)}
                     </div>
                   ) : (
                     <div 
