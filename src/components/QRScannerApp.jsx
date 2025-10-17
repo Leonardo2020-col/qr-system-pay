@@ -190,18 +190,18 @@ const QRScannerApp = ({ onVolver }) => {
             <div className="p-6 space-y-6">
               {/* Foto y Nombre */}
               <div className="text-center pb-4 border-b-2 border-gray-100">
-                <div className="mb-4 flex justify-center relative">
+                <div className="mb-4 flex justify-center">
                   {tieneFoto && !imageError ? (
-                    <>
+                    <div className="relative w-32 h-32">
                       {/* Skeleton loader mientras carga */}
                       {!imageLoaded && (
-                        <div className="w-32 h-32 rounded-full bg-gray-200 animate-pulse"></div>
+                        <div className="absolute inset-0 w-32 h-32 rounded-full bg-gray-200 animate-pulse"></div>
                       )}
                       <img 
                         src={persona.foto} 
                         alt={persona.nombre}
                         className={`w-32 h-32 rounded-full object-cover border-4 border-indigo-200 shadow-lg transition-opacity duration-300 ${
-                          imageLoaded ? 'opacity-100' : 'opacity-0 absolute'
+                          imageLoaded ? 'opacity-100' : 'opacity-0'
                         }`}
                         onError={(e) => {
                           console.error('❌ Error cargando imagen:', persona.foto);
@@ -214,7 +214,7 @@ const QRScannerApp = ({ onVolver }) => {
                           setImageLoaded(true);
                         }}
                       />
-                    </>
+                    </div>
                   ) : (
                     <div className="w-32 h-32 rounded-full bg-gradient-to-br from-indigo-400 to-indigo-600 flex items-center justify-center text-white shadow-lg">
                       {persona.nombre ? (
