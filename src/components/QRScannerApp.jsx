@@ -16,6 +16,44 @@ const QRScannerApp = ({ onVolver }) => {
   const [processingImage, setProcessingImage] = useState(false);
   const scannerRef = useRef(null);
   const fileInputRef = useRef(null);
+  const imgRef = useRef(null);
+
+  // Efecto para cargar la imagen cuando cambie la persona
+  useEffect(() => {
+    if (persona?.foto) {
+      console.log('🔄 Intentando cargar imagen:', persona.foto);
+      setImageLoaded(false);
+      setImageError(false);
+
+      // Precargar imagen usando objeto Image
+      const img = new Image();
+      
+      img.onload = () => {
+        console.log('✅ Imagen precargada exitosamente');
+        setImageLoaded(true);
+        setImageError(false);
+      };
+      
+      img.onerror = (e) => {
+        console.error('❌ Error precargando imagen:', e);
+        setImageError(true);
+        setImageLoaded(true);
+      };
+      
+      // Timeout de 8 segundos
+      const timeout = setTimeout(() => {
+        if (!imageLoaded) {
+          console.warn('⏱️ Timeout: Imagen tardó más de 8 segundos');
+          setImageError(true);
+          setImageLoaded(true);
+        }
+      }, 8000);
+      
+      img.src = persona.foto;
+      
+      return () => clearTimeout(timeout);
+    }
+  }, [persona?.foto]);
 
   useEffect(() => {
     Html5Qrcode.getCameras().then(devices => {
