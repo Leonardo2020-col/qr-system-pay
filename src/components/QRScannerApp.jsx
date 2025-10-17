@@ -20,40 +20,48 @@ const QRScannerApp = ({ onVolver }) => {
 
   // Efecto para cargar la imagen cuando cambie la persona
   useEffect(() => {
-    if (persona?.foto) {
-      console.log('🔄 Intentando cargar imagen:', persona.foto);
+    if (persona?.foto && persona.foto.trim() !== '') {
+      console.log('🔄 Cargando imagen para:', persona.nombre);
       setImageLoaded(false);
       setImageError(false);
 
       // Precargar imagen usando objeto Image
       const img = new Image();
+      let timeoutId;
       
-      img.onload = () => {
-        console.log('✅ Imagen precargada exitosamente');
+      const handleLoad = () => {
+        console.log('✅ Imagen cargada exitosamente');
         setImageLoaded(true);
         setImageError(false);
+        if (timeoutId) clearTimeout(timeoutId);
       };
       
-      img.onerror = (e) => {
-        console.error('❌ Error precargando imagen:', e);
+      const handleError = (e) => {
+        console.error('❌ Error cargando imagen:', e);
         setImageError(true);
         setImageLoaded(true);
+        if (timeoutId) clearTimeout(timeoutId);
       };
       
+      img.addEventListener('load', handleLoad);
+      img.addEventListener('error', handleError);
+      
       // Timeout de 8 segundos
-      const timeout = setTimeout(() => {
-        if (!imageLoaded) {
-          console.warn('⏱️ Timeout: Imagen tardó más de 8 segundos');
-          setImageError(true);
-          setImageLoaded(true);
-        }
+      timeoutId = setTimeout(() => {
+        console.warn('⏱️ Timeout: Imagen tardó más de 8 segundos');
+        setImageError(true);
+        setImageLoaded(true);
       }, 8000);
       
       img.src = persona.foto;
       
-      return () => clearTimeout(timeout);
+      return () => {
+        img.removeEventListener('load', handleLoad);
+        img.removeEventListener('error', handleError);
+        if (timeoutId) clearTimeout(timeoutId);
+      };
     }
-  }, [persona?.foto]);
+  }, [persona?.foto, persona?.nombre]); // Solo cuando cambie la foto o el nombre
 
   useEffect(() => {
     Html5Qrcode.getCameras().then(devices => {
@@ -211,13 +219,6 @@ const QRScannerApp = ({ onVolver }) => {
     const empadronado = persona.empadronado || false;
     const tieneFoto = persona.foto && persona.foto.trim() !== '';
 
-    // Debug logs
-    console.log('📸 Persona completa:', persona);
-    console.log('📸 Tiene foto?', tieneFoto);
-    console.log('📸 URL:', persona.foto);
-    console.log('📸 Image error?', imageError);
-    console.log('📸 Image loaded?', imageLoaded);
-
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
         <div className="max-w-md mx-auto">
@@ -249,82 +250,66 @@ const QRScannerApp = ({ onVolver }) => {
             <div className="p-6 space-y-6">
               {/* Foto y Nombre */}
               <div className="text-center pb-4 border-b-2 border-gray-100">
-                {/* DEBUG: Mostrar info de foto */}
-                {tieneFoto && (
-                  <div className="mb-2 text-xs bg-yellow-50 p-2 rounded">
-                    <p className="font-bold mb-1">🔍 Debug Info:</p>
-                    <p>Tiene foto: {tieneFoto ? 'Sí' : 'No'}</p>
-                    <p className="break-all text-[10px]">URL completa: {persona.foto}</p>
-                    <p>Error: {imageError ? 'Sí' : 'No'} | Cargada: {imageLoaded ? 'Sí' : 'No'}</p>
-                    <button
-                      onClick={() => window.open(persona.foto, '_blank')}
-                      className="mt-2 bg-blue-500 text-white px-2 py-1 rounded text-xs"
-                    >
-                      Abrir URL en nueva pestaña
-                    </button>
-                    <button
-                      onClick={() => {
-                        setImageLoaded(false);
-                        setImageError(false);
-                        setTimeout(() => {
-                          const img = document.querySelector('img[alt="' + persona.nombre + '"]');
-                          if (img) {
-                            img.src = persona.foto + '?t=' + Date.now();
-                          }
-                        }, 100);
-                      }}
-                      className="mt-2 ml-2 bg-green-500 text-white px-2 py-1 rounded text-xs"
-                    >
-                      Forzar recarga
-                    </button>
-                  </div>
-                )}
-                
                 <div className="mb-4 flex justify-center items-center">
-                  {tieneFoto && !imageError ? (
+                  {tieneFoto ? (
                     <div className="relative inline-block">
-                      {/* Skeleton loader */}
-                      {!imageLoaded && (
-                        <div className="w-32 h-32 rounded-full bg-gray-300 animate-pulse"></div>
-                      )}
-                      
-                      {/* Imagen - Usar objeto Image para precargar */}
+                      {/* Mostrar siempre la imagen y el loader superpuesto */}
                       <img 
+                        ref={imgRef}
                         src={persona.foto}
                         alt={persona.nombre}
-                        referrerPolicy="no-referrer"
                         style={{
-                          display: imageLoaded ? 'block' : 'none',
                           width: '128px',
                           height: '128px',
                           borderRadius: '50%',
                           objectFit: 'cover',
                           border: '4px solid rgb(199, 210, 254)',
-                          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
-                        }}
-                        onError={(e) => {
-                          console.error('❌ Error cargando imagen:', e);
-                          console.error('❌ URL que falló:', persona.foto);
-                          console.error('❌ Natural dimensions:', e.target.naturalWidth, 'x', e.target.naturalHeight);
-                          setImageError(true);
-                          setImageLoaded(true);
-                        }}
-                        onLoad={(e) => {
-                          console.log('✅ Imagen cargada exitosamente');
-                          console.log('✅ Dimensiones:', e.target.naturalWidth, 'x', e.target.naturalHeight);
-                          setImageError(false);
-                          setImageLoaded(true);
+                          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+                          opacity: imageLoaded && !imageError ? 1 : 0.3,
+                          transition: 'opacity 0.3s ease'
                         }}
                       />
                       
-                      {/* Timeout manual - Si después de 10s no carga, mostrar error */}
-                      {!imageLoaded && tieneFoto && setTimeout(() => {
-                        if (!imageLoaded) {
-                          console.warn('⏱️ Timeout: La imagen tardó demasiado en cargar');
-                          setImageError(true);
-                          setImageLoaded(true);
-                        }
-                      }, 10000)}
+                      {/* Loader superpuesto */}
+                      {!imageLoaded && !imageError && (
+                        <div 
+                          style={{
+                            position: 'absolute',
+                            top: '50%',
+                            left: '50%',
+                            transform: 'translate(-50%, -50%)',
+                            width: '40px',
+                            height: '40px',
+                            border: '4px solid rgba(79, 70, 229, 0.3)',
+                            borderTop: '4px solid rgb(79, 70, 229)',
+                            borderRadius: '50%',
+                            animation: 'spin 1s linear infinite'
+                          }}
+                        />
+                      )}
+                      
+                      {/* Si hay error, mostrar avatar */}
+                      {imageError && (
+                        <div 
+                          style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            width: '128px',
+                            height: '128px',
+                            borderRadius: '50%',
+                            background: 'linear-gradient(to bottom right, rgb(129, 140, 248), rgb(79, 70, 229))',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: 'white'
+                          }}
+                        >
+                          <span style={{ fontSize: '3rem', fontWeight: 'bold' }}>
+                            {persona.nombre.charAt(0).toUpperCase()}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <div 
@@ -350,6 +335,14 @@ const QRScannerApp = ({ onVolver }) => {
                     </div>
                   )}
                 </div>
+                
+                {/* CSS para animación de spinner */}
+                <style>{`
+                  @keyframes spin {
+                    0% { transform: translate(-50%, -50%) rotate(0deg); }
+                    100% { transform: translate(-50%, -50%) rotate(360deg); }
+                  }
+                `}</style>
                 
                 <h2 className="text-2xl md:text-3xl font-bold text-gray-800 mb-2">
                   {persona.nombre}
