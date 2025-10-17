@@ -76,13 +76,28 @@ const QRScannerApp = ({ onVolver }) => {
       
       // Buscar la foto en Supabase usando el DNI
       console.log('🔍 Buscando foto para DNI:', personaData.dni);
-      const personaCompleta = await supabaseService.buscarPorDNI(personaData.dni);
       
-      if (personaCompleta && personaCompleta.foto_url) {
-        personaData.foto = personaCompleta.foto_url;
-        console.log('✅ Foto encontrada:', personaCompleta.foto_url);
-      } else {
-        console.log('⚠️ No se encontró foto para este DNI');
+      try {
+        const personaCompleta = await supabaseService.buscarPorDNI(personaData.dni);
+        
+        if (personaCompleta && personaCompleta.foto_url) {
+          // Limpiar la URL y forzar HTTPS
+          let fotoUrl = personaCompleta.foto_url.trim();
+          
+          // Asegurar que sea HTTPS
+          if (fotoUrl.startsWith('http:')) {
+            fotoUrl = fotoUrl.replace('http:', 'https:');
+          }
+          
+          personaData.foto = fotoUrl;
+          console.log('✅ Foto encontrada y procesada:', fotoUrl);
+        } else {
+          console.log('⚠️ No se encontró foto para este DNI');
+          personaData.foto = null;
+        }
+      } catch (fotoError) {
+        console.error('❌ Error buscando foto en Supabase:', fotoError);
+        personaData.foto = null;
       }
       
       setPersona(personaData);
