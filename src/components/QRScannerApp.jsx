@@ -14,23 +14,28 @@ const QRScannerApp = ({ onVolver }) => {
   const [imageError, setImageError] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [processingImage, setProcessingImage] = useState(false);
-  const [currentDNI, setCurrentDNI] = useState(null); // ✅ AGREGADO
+  const [currentDNI, setCurrentDNI] = useState(null);
   const scannerRef = useRef(null);
   const fileInputRef = useRef(null);
   const imgRef = useRef(null);
 
   // Efecto para cargar la imagen cuando cambie el DNI
   useEffect(() => {
-    // Reset de estados cuando no hay persona
-    if (!persona || !currentDNI) {
+    // Reset de estados cuando no hay DNI
+    if (!currentDNI) {
       setImageLoaded(false);
       setImageError(false);
       return;
     }
 
+    // Esperar a que persona esté disponible
+    if (!persona) {
+      return;
+    }
+
     // Solo procesar si hay foto
     if (persona?.foto && persona.foto.trim() !== '') {
-      console.log('🔄 Iniciando carga de imagen para DNI:', currentDNI);
+      console.log('🔄 Cargando imagen ÚNICA VEZ para DNI:', currentDNI);
       
       // Reset inmediato de estados
       setImageLoaded(false);
@@ -85,7 +90,7 @@ const QRScannerApp = ({ onVolver }) => {
       setImageLoaded(true);
       setImageError(false);
     }
-  }, [currentDNI]); // ✅ SOLO DEPENDE DE currentDNI
+  }, [currentDNI, persona]); // ✅ Incluye persona en las dependencias
 
   useEffect(() => {
     Html5Qrcode.getCameras().then(devices => {
@@ -144,11 +149,17 @@ const QRScannerApp = ({ onVolver }) => {
     try {
       const personaData = JSON.parse(decodedText);
       
-      // ✅ Establecer el DNI actual ANTES de buscar la foto
+      // ⚠️ Prevenir llamadas duplicadas
+      if (currentDNI === personaData.dni) {
+        console.log('⚠️ DNI ya procesado, ignorando duplicado');
+        return;
+      }
+      
+      // Establecer el DNI actual ANTES de buscar la foto
       setCurrentDNI(personaData.dni);
       
       // Buscar la foto en Supabase usando el DNI
-      console.log('🔍 Buscando foto para DNI:', personaData.dni);
+      console.log('🔍 Buscando foto ÚNICA VEZ para DNI:', personaData.dni);
       
       try {
         const personaCompleta = await supabaseService.buscarPorDNI(personaData.dni);
@@ -161,7 +172,7 @@ const QRScannerApp = ({ onVolver }) => {
           }
           
           personaData.foto = fotoUrl;
-          console.log('✅ Foto encontrada y procesada:', fotoUrl);
+          console.log('✅ Foto encontrada y procesada');
         } else {
           console.log('⚠️ No se encontró foto para este DNI');
           personaData.foto = null;
@@ -189,7 +200,7 @@ const QRScannerApp = ({ onVolver }) => {
   const handleReset = async () => {
     await stopScanning();
     setPersona(null);
-    setCurrentDNI(null); // ✅ AGREGADO
+    setCurrentDNI(null);
     setScanning(false);
     setScannerStarted(false);
     setImageError(false);
