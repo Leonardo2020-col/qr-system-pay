@@ -251,9 +251,9 @@ const QRScannerApp = ({ onVolver }) => {
               {/* Foto y Nombre */}
               <div className="text-center pb-4 border-b-2 border-gray-100">
                 <div className="mb-4 flex justify-center items-center">
-                  {tieneFoto ? (
-                    <div className="relative inline-block">
-                      {/* Imagen */}
+                  <div className="relative inline-block" style={{ width: '128px', height: '128px' }}>
+                    {tieneFoto && imageLoaded && !imageError ? (
+                      // CASO 1: Imagen cargada exitosamente
                       <img 
                         ref={imgRef}
                         src={persona.foto}
@@ -264,89 +264,56 @@ const QRScannerApp = ({ onVolver }) => {
                           borderRadius: '50%',
                           objectFit: 'cover',
                           border: '4px solid rgb(199, 210, 254)',
-                          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
-                          opacity: (imageLoaded && !imageError) ? 1 : 0.3,
-                          transition: 'opacity 0.3s ease',
-                          display: imageError ? 'none' : 'block'
+                          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
                         }}
                       />
-                      
-                      {/* Loader superpuesto mientras carga */}
-                      {!imageLoaded && !imageError && (
+                    ) : tieneFoto && !imageLoaded && !imageError ? (
+                      // CASO 2: Cargando imagen
+                      <div 
+                        style={{
+                          width: '128px',
+                          height: '128px',
+                          borderRadius: '50%',
+                          background: 'linear-gradient(to bottom right, rgb(229, 231, 235), rgb(209, 213, 219))',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          border: '4px solid rgb(199, 210, 254)',
+                          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
+                        }}
+                      >
                         <div 
                           style={{
-                            position: 'absolute',
-                            top: 0,
-                            left: 0,
-                            width: '128px',
-                            height: '128px',
+                            width: '40px',
+                            height: '40px',
+                            border: '4px solid rgba(79, 70, 229, 0.3)',
+                            borderTop: '4px solid rgb(79, 70, 229)',
                             borderRadius: '50%',
-                            background: 'rgba(229, 231, 235, 0.8)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
+                            animation: 'spin 1s linear infinite'
                           }}
-                        >
-                          <div 
-                            style={{
-                              width: '40px',
-                              height: '40px',
-                              border: '4px solid rgba(79, 70, 229, 0.3)',
-                              borderTop: '4px solid rgb(79, 70, 229)',
-                              borderRadius: '50%',
-                              animation: 'spin 1s linear infinite'
-                            }}
-                          />
-                        </div>
-                      )}
-                      
-                      {/* Avatar de respaldo si hay error o mientras carga */}
-                      {(imageError || !imageLoaded) && (
-                        <div 
-                          style={{
-                            position: imageError ? 'relative' : 'absolute',
-                            top: 0,
-                            left: 0,
-                            width: '128px',
-                            height: '128px',
-                            borderRadius: '50%',
-                            background: 'linear-gradient(to bottom right, rgb(129, 140, 248), rgb(79, 70, 229))',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            color: 'white',
-                            opacity: imageError ? 1 : 0.5
-                          }}
-                        >
-                          <span style={{ fontSize: '3rem', fontWeight: 'bold' }}>
-                            {persona.nombre.charAt(0).toUpperCase()}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div 
-                      style={{
-                        width: '128px',
-                        height: '128px',
-                        borderRadius: '50%',
-                        background: 'linear-gradient(to bottom right, rgb(129, 140, 248), rgb(79, 70, 229))',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: 'white',
-                        boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
-                      }}
-                    >
-                      {persona.nombre ? (
+                        />
+                      </div>
+                    ) : (
+                      // CASO 3: Sin foto o error cargando
+                      <div 
+                        style={{
+                          width: '128px',
+                          height: '128px',
+                          borderRadius: '50%',
+                          background: 'linear-gradient(to bottom right, rgb(129, 140, 248), rgb(79, 70, 229))',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: 'white',
+                          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
+                        }}
+                      >
                         <span style={{ fontSize: '3rem', fontWeight: 'bold' }}>
                           {persona.nombre.charAt(0).toUpperCase()}
                         </span>
-                      ) : (
-                        <User size={48} />
-                      )}
-                    </div>
-                  )}
+                      </div>
+                    )}
+                  </div>
                 </div>
                 
                 {/* CSS para animación de spinner */}
