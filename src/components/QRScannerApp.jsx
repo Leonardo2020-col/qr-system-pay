@@ -253,7 +253,7 @@ const QRScannerApp = ({ onVolver }) => {
                 <div className="mb-4 flex justify-center items-center">
                   {tieneFoto ? (
                     <div className="relative inline-block">
-                      {/* Mostrar siempre la imagen y el loader superpuesto */}
+                      {/* Imagen */}
                       <img 
                         ref={imgRef}
                         src={persona.foto}
@@ -265,34 +265,46 @@ const QRScannerApp = ({ onVolver }) => {
                           objectFit: 'cover',
                           border: '4px solid rgb(199, 210, 254)',
                           boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
-                          opacity: imageLoaded && !imageError ? 1 : 0.3,
-                          transition: 'opacity 0.3s ease'
+                          opacity: (imageLoaded && !imageError) ? 1 : 0.3,
+                          transition: 'opacity 0.3s ease',
+                          display: imageError ? 'none' : 'block'
                         }}
                       />
                       
-                      {/* Loader superpuesto */}
+                      {/* Loader superpuesto mientras carga */}
                       {!imageLoaded && !imageError && (
                         <div 
                           style={{
                             position: 'absolute',
-                            top: '50%',
-                            left: '50%',
-                            transform: 'translate(-50%, -50%)',
-                            width: '40px',
-                            height: '40px',
-                            border: '4px solid rgba(79, 70, 229, 0.3)',
-                            borderTop: '4px solid rgb(79, 70, 229)',
+                            top: 0,
+                            left: 0,
+                            width: '128px',
+                            height: '128px',
                             borderRadius: '50%',
-                            animation: 'spin 1s linear infinite'
+                            background: 'rgba(229, 231, 235, 0.8)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
                           }}
-                        />
+                        >
+                          <div 
+                            style={{
+                              width: '40px',
+                              height: '40px',
+                              border: '4px solid rgba(79, 70, 229, 0.3)',
+                              borderTop: '4px solid rgb(79, 70, 229)',
+                              borderRadius: '50%',
+                              animation: 'spin 1s linear infinite'
+                            }}
+                          />
+                        </div>
                       )}
                       
-                      {/* Si hay error, mostrar avatar */}
-                      {imageError && (
+                      {/* Avatar de respaldo si hay error o mientras carga */}
+                      {(imageError || !imageLoaded) && (
                         <div 
                           style={{
-                            position: 'absolute',
+                            position: imageError ? 'relative' : 'absolute',
                             top: 0,
                             left: 0,
                             width: '128px',
@@ -302,7 +314,8 @@ const QRScannerApp = ({ onVolver }) => {
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            color: 'white'
+                            color: 'white',
+                            opacity: imageError ? 1 : 0.5
                           }}
                         >
                           <span style={{ fontSize: '3rem', fontWeight: 'bold' }}>
