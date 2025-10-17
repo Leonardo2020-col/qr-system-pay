@@ -1,8 +1,8 @@
-// src/App.jsx
+// src/App.js
 
-import React, { useState, useEffect } from 'react';
-import { UserPlus, LogIn, LogOut, RefreshCw, AlertCircle, QrCode } from 'lucide-react';
-import { useGoogleSheets } from './hooks/useGoogleSheets';
+import React, { useState } from 'react';
+import { UserPlus, RefreshCw, AlertCircle, QrCode, CloudUpload, LogIn, LogOut } from 'lucide-react';
+import { useHybridData } from './hooks/useHybridData';
 import { generarQRCode } from './services/qrService';
 import PersonasList from './components/PersonasList';
 import PersonaForm from './components/PersonaForm';
@@ -15,14 +15,10 @@ function App() {
     personas,
     loading,
     error,
-    isAuthenticated,
-    isInitialized,
-    signIn,
-    signOut,
     cargarPersonas,
     agregarPersona,
     eliminarPersona,
-  } = useGoogleSheets();
+  } = useSupabase();
 
   const [busqueda, setBusqueda] = useState('');
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
@@ -32,19 +28,13 @@ function App() {
   const [mostrarEscaner, setMostrarEscaner] = useState(false);
   const [generandoQR, setGenerandoQR] = useState(false);
 
-  useEffect(() => {
-    if (isAuthenticated) {
-      cargarPersonas();
-    }
-  }, [isAuthenticated, cargarPersonas]);
-
-  const handleGenerarQR = async (persona, alDia) => {
+  const handleGenerarQR = async (persona, empadronado) => {
     try {
       setGenerandoQR(true);
-      const url = await generarQRCode(persona, alDia);
+      const url = await generarQRCode(persona, empadronado);
       setQrUrl(url);
       setPersonaSeleccionada(persona);
-      setEstadoPago(alDia);
+      setEstadoPago(empadronado);
     } catch (error) {
       console.error('Error generando QR:', error);
       alert('Error al generar el código QR. Intenta de nuevo.');
@@ -60,11 +50,11 @@ function App() {
     }
   };
 
-  const handleEliminarPersona = async (index) => {
+  const handleEliminarPersona = async (id) => {
     if (window.confirm('¿Estás seguro de eliminar esta persona?')) {
-      await eliminarPersona(index);
+      await eliminarPersona(id);
       
-      if (personaSeleccionada && personaSeleccionada.id === personas[index].id) {
+      if (personaSeleccionada && personaSeleccionada.id === id) {
         setQrUrl('');
         setPersonaSeleccionada(null);
       }
@@ -82,73 +72,6 @@ function App() {
     return <QRScannerApp onVolver={() => setMostrarEscaner(false)} />;
   }
 
-  // Pantalla de carga inicial
-  if (!isInitialized) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-        <div className="text-center">
-          <RefreshCw className="animate-spin mx-auto mb-4 text-indigo-600" size={48} />
-          <p className="text-gray-600 text-lg">Inicializando Google Sheets...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Pantalla de inicio de sesión
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-2xl p-6 md:p-8 max-w-md w-full">
-          <div className="text-center mb-6 md:mb-8">
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-2">
-              Sistema de Gestión QR
-            </h1>
-            <p className="text-sm md:text-base text-gray-600">
-              Control de pagos y generación de códigos QR
-            </p>
-          </div>
-
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4 flex items-start gap-2">
-              <AlertCircle size={20} className="mt-0.5 flex-shrink-0" />
-              <p className="text-sm break-words">{error}</p>
-            </div>
-          )}
-
-          <div className="space-y-3">
-            <button
-              onClick={signIn}
-              disabled={loading}
-              className="w-full flex items-center justify-center gap-3 bg-indigo-600 text-white px-6 py-4 rounded-lg hover:bg-indigo-700 transition font-medium shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? (
-                <RefreshCw className="animate-spin" size={20} />
-              ) : (
-                <LogIn size={20} />
-              )}
-              {loading ? 'Conectando...' : 'Iniciar sesión con Google'}
-            </button>
-
-            <button
-              onClick={() => setMostrarEscaner(true)}
-              className="w-full flex items-center justify-center gap-3 bg-green-600 text-white px-6 py-4 rounded-lg hover:bg-green-700 transition font-medium shadow-md"
-            >
-              <QrCode size={20} />
-              Escanear Código QR
-            </button>
-          </div>
-
-          <div className="mt-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-            <p className="text-xs md:text-sm text-yellow-800">
-              <strong>Nota:</strong> Necesitas configurar las credenciales de Google Sheets 
-              en el archivo <code className="bg-yellow-100 px-1 py-0.5 rounded">.env</code>
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   // Pantalla principal
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4 md:p-6 overflow-x-hidden">
@@ -156,18 +79,16 @@ function App() {
         {/* Header */}
         <div className="bg-white rounded-2xl shadow-xl p-4 md:p-6 mb-4 md:mb-6">
           <div className="flex flex-col gap-4">
-            {/* Título */}
             <div>
               <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-gray-800 mb-1">
                 Sistema de Gestión QR
               </h1>
               <p className="text-xs md:text-sm lg:text-base text-gray-600">
-                Control de pagos y generación de códigos QR
+                Control de empadronamiento y generación de códigos QR
               </p>
             </div>
             
-            {/* Botones en grid */}
-            <div className="grid grid-cols-3 gap-2 w-full">
+            <div className="grid grid-cols-2 gap-2 w-full">
               <button
                 onClick={() => setMostrarEscaner(true)}
                 className="flex flex-col items-center justify-center gap-1 bg-green-100 text-green-700 px-2 py-3 rounded-lg hover:bg-green-200 transition"
@@ -183,14 +104,6 @@ function App() {
               >
                 <RefreshCw className={`${loading ? 'animate-spin' : ''} w-[18px] h-[18px] md:w-5 md:h-5`} />
                 <span className="text-xs font-medium">Actualizar</span>
-              </button>
-              
-              <button
-                onClick={signOut}
-                className="flex flex-col items-center justify-center gap-1 bg-red-100 text-red-700 px-2 py-3 rounded-lg hover:bg-red-200 transition"
-              >
-                <LogOut size={18} className="md:w-5 md:h-5" />
-                <span className="text-xs font-medium truncate w-full">Cerrar sesión</span>
               </button>
             </div>
           </div>
@@ -270,7 +183,7 @@ function App() {
               <QRDisplay 
                 qrUrl={qrUrl} 
                 persona={personaSeleccionada} 
-                alDia={estadoPago}
+                empadronado={estadoPago}
               />
             )}
           </div>

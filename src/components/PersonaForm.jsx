@@ -1,11 +1,9 @@
 // src/components/PersonaForm.jsx
 
 import React, { useState } from 'react';
-import { Upload, X, Camera } from 'lucide-react';
+import { Upload, X, Camera, CheckSquare } from 'lucide-react';
 import { validarPersona } from '../utils/validators';
-import { obtenerFechaActual } from '../utils/dateUtils';
 import { comprimirImagen, validarTamañoImagen } from '../utils/imageUtils';
-
 
 const PersonaForm = ({ onAgregar, onCancelar }) => {
   const [persona, setPersona] = useState({
@@ -13,7 +11,7 @@ const PersonaForm = ({ onAgregar, onCancelar }) => {
     dni: '',
     email: '',
     telefono: '',
-    ultimoPago: obtenerFechaActual(),
+    empadronado: false,
     monto: '',
     foto: '',
   });
@@ -23,8 +21,11 @@ const PersonaForm = ({ onAgregar, onCancelar }) => {
   const [subiendo, setSubiendo] = useState(false);
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setPersona({ ...persona, [name]: value });
+    const { name, value, type, checked } = e.target;
+    setPersona({ 
+      ...persona, 
+      [name]: type === 'checkbox' ? checked : value 
+    });
     
     if (errores[name]) {
       setErrores({ ...errores, [name]: null });
@@ -32,49 +33,45 @@ const PersonaForm = ({ onAgregar, onCancelar }) => {
   };
 
   const handleImagenChange = async (e) => {
-  const file = e.target.files[0];
-  if (file) {
-    // Validar tamaño original (máximo 2MB)
-    if (file.size > 2000000) {
-      alert('La imagen es muy grande. Por favor, usa una imagen menor a 2MB.');
-      return;
-    }
-
-    // Validar tipo
-    if (!file.type.startsWith('image/')) {
-      alert('Por favor selecciona una imagen válida.');
-      return;
-    }
-
-    setSubiendo(true);
-
-    try {
-      // Comprimir imagen
-      const base64Comprimido = await comprimirImagen(file, 150, 0.6);
-      
-      // Validar tamaño final
-      if (!validarTamañoImagen(base64Comprimido, 25)) {
-        alert('La imagen sigue siendo muy grande después de la compresión. Intenta con una imagen más pequeña.');
-        setSubiendo(false);
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 2000000) {
+        alert('La imagen es muy grande. Por favor, usa una imagen menor a 2MB.');
         return;
       }
-      
-      setPersona({ ...persona, foto: base64Comprimido });
-      setPrevisualizacion(base64Comprimido);
-      setSubiendo(false);
-    } catch (error) {
-      console.error('Error procesando imagen:', error);
-      alert('Error al procesar la imagen');
-      setSubiendo(false);
+
+      if (!file.type.startsWith('image/')) {
+        alert('Por favor selecciona una imagen válida.');
+        return;
+      }
+
+      setSubiendo(true);
+
+      try {
+        const base64Comprimido = await comprimirImagen(file, 150, 0.6);
+        
+        if (!validarTamañoImagen(base64Comprimido, 100)) {
+          alert('La imagen sigue siendo muy grande después de la compresión. Intenta con una imagen más pequeña.');
+          setSubiendo(false);
+          return;
+        }
+        
+        setPersona({ ...persona, foto: base64Comprimido });
+        setPrevisualizacion(base64Comprimido);
+        setSubiendo(false);
+      } catch (error) {
+        console.error('Error procesando imagen:', error);
+        alert('Error al procesar la imagen');
+        setSubiendo(false);
+      }
     }
-  }
-};
+  };
 
   const handleTomarFoto = () => {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
-    input.capture = 'environment'; // Usar cámara trasera
+    input.capture = 'environment';
     input.onchange = (e) => handleImagenChange(e);
     input.click();
   };
@@ -102,7 +99,7 @@ const PersonaForm = ({ onAgregar, onCancelar }) => {
       dni: '',
       email: '',
       telefono: '',
-      ultimoPago: obtenerFechaActual(),
+      empadronado: false,
       monto: '',
       foto: '',
     });
@@ -164,10 +161,6 @@ const PersonaForm = ({ onAgregar, onCancelar }) => {
           {subiendo && (
             <p className="text-sm text-indigo-600 mt-2">Procesando imagen...</p>
           )}
-          
-          <p className="text-xs text-gray-500 mt-2">
-          La imagen se comprimirá automáticamente. Tamaño recomendado: menor a 1MB
-          </p>
         </div>
 
         {/* Campos del formulario */}
@@ -240,21 +233,6 @@ const PersonaForm = ({ onAgregar, onCancelar }) => {
 
           <div>
             <input
-              type="date"
-              name="ultimoPago"
-              value={persona.ultimoPago}
-              onChange={handleChange}
-              className={`w-full px-4 py-2 border rounded-lg outline-none transition ${
-                errores.ultimoPago ? 'border-red-500' : 'border-gray-300 focus:border-indigo-500'
-              }`}
-            />
-            {errores.ultimoPago && (
-              <p className="text-red-500 text-xs mt-1">{errores.ultimoPago}</p>
-            )}
-          </div>
-
-          <div>
-            <input
               type="number"
               name="monto"
               placeholder="Monto (S/)"
@@ -270,9 +248,28 @@ const PersonaForm = ({ onAgregar, onCancelar }) => {
               <p className="text-red-500 text-xs mt-1">{errores.monto}</p>
             )}
           </div>
+
+          {/* Checkbox de Empadronado */}
+          <div className="flex items-center">
+            <label className="flex items-center gap-3 cursor-pointer bg-white px-4 py-2 border border-gray-300 rounded-lg hover:border-indigo-500 transition w-full">
+              <input
+                type="checkbox"
+                name="empadronado"
+                checked={persona.empadronado}
+                onChange={handleChange}
+                className="w-5 h-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+              />
+              <div className="flex items-center gap-2">
+                <CheckSquare size={20} className={persona.empadronado ? 'text-green-600' : 'text-gray-400'} />
+                <span className="text-sm font-medium text-gray-700">
+                  {persona.empadronado ? 'Empadronado' : 'No empadronado'}
+                </span>
+              </div>
+            </label>
+          </div>
         </div>
 
-        <div className="flex gap-3 mt-4">
+        <div className="flex gap-3 mt-6">
           <button
             type="submit"
             disabled={subiendo}

@@ -1,15 +1,15 @@
-// src/services/qrService.js - SIN DEPENDENCIAS
+// src/services/qrService.js
 
-export const generarQRCode = async (persona, alDia) => {
+export const generarQRCode = async (persona, empadronado) => {
   // Crear datos del QR SIN la foto
   const datosQR = {
     nombre: persona.nombre,
     dni: persona.dni,
     email: persona.email || '',
     telefono: persona.telefono,
-    ultimoPago: persona.ultimoPago,
+    empadronado: empadronado,
     monto: persona.monto,
-    estado: alDia ? 'AL DÍA' : 'PENDIENTE',
+    estado: empadronado ? 'EMPADRONADO' : 'NO EMPADRONADO',
     fechaGeneracion: new Date().toISOString(),
   };
 
@@ -17,11 +17,11 @@ export const generarQRCode = async (persona, alDia) => {
   console.log('📊 Generando QR con', textoQR.length, 'caracteres');
 
   try {
-    // Usar QuickChart API (gratis, sin límites, rápido)
+    // Usar QR Server API (gratis, rápido)
     const encodedData = encodeURIComponent(textoQR);
     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodedData}&color=4F46E5&bgcolor=FFFFFF`;
     
-    console.log('✅ QR generado con QuickChart API');
+    console.log('✅ QR generado correctamente');
     return qrUrl;
   } catch (error) {
     console.error('❌ Error generando QR:', error);

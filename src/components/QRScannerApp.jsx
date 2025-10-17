@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { CheckCircle, XCircle, ArrowLeft, Camera, Home, Video, User } from 'lucide-react';
-import { verificarPagoAlDia, formatearFecha, diasDesdeUltimoPago } from '../utils/dateUtils';
 
 const QRScannerApp = ({ onVolver }) => {
   const [persona, setPersona] = useState(null);
@@ -15,7 +14,6 @@ const QRScannerApp = ({ onVolver }) => {
   const [imageLoaded, setImageLoaded] = useState(false);
   const scannerRef = useRef(null);
 
-  // Obtener lista de cámaras disponibles
   useEffect(() => {
     Html5Qrcode.getCameras().then(devices => {
       if (devices && devices.length) {
@@ -70,21 +68,18 @@ const QRScannerApp = ({ onVolver }) => {
   };
 
   const onScanSuccess = async (decodedText) => {
-  try {
-    const personaData = JSON.parse(decodedText);
-    
-    // Si está autenticado y tiene acceso a Google Sheets, buscar la foto
-    // Por ahora, simplemente mostramos sin foto
-    setPersona(personaData);
-    setScanning(false);
-    setImageError(false);
-    setImageLoaded(false);
-    stopScanning();
-  } catch (error) {
-    console.error('Error al parsear QR:', error);
-    alert('Código QR inválido. Intenta de nuevo.');
-  }
-};
+    try {
+      const personaData = JSON.parse(decodedText);
+      setPersona(personaData);
+      setScanning(false);
+      setImageError(false);
+      setImageLoaded(false);
+      stopScanning();
+    } catch (error) {
+      console.error('Error al parsear QR:', error);
+      alert('Código QR inválido. Intenta de nuevo.');
+    }
+  };
 
   const onScanError = (err) => {
     // Ignorar errores de escaneo continuo
@@ -99,7 +94,6 @@ const QRScannerApp = ({ onVolver }) => {
     setImageLoaded(false);
   };
 
-  // Limpiar al desmontar
   useEffect(() => {
     return () => {
       stopScanning();
@@ -108,10 +102,8 @@ const QRScannerApp = ({ onVolver }) => {
 
   // Vista: Mostrar información de la persona
   if (persona) {
-    const alDia = verificarPagoAlDia(persona.ultimoPago);
-    const dias = diasDesdeUltimoPago(persona.ultimoPago);
+    const empadronado = persona.empadronado || false;
     const tieneFoto = persona.foto && persona.foto.trim() !== '';
-    const esBase64 = tieneFoto && persona.foto.startsWith('data:image');
 
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
@@ -144,11 +136,9 @@ const QRScannerApp = ({ onVolver }) => {
             <div className="p-6 space-y-6">
               {/* Foto y Nombre */}
               <div className="text-center pb-4 border-b-2 border-gray-100">
-                {/* Foto del cliente */}
                 <div className="mb-4 flex justify-center relative">
                   {tieneFoto && !imageError ? (
                     <>
-                      {/* Skeleton loader mientras carga */}
                       {!imageLoaded && (
                         <div className="w-32 h-32 rounded-full bg-gray-200 animate-pulse absolute"></div>
                       )}
@@ -171,7 +161,6 @@ const QRScannerApp = ({ onVolver }) => {
                       />
                     </>
                   ) : (
-                    // Avatar con inicial si no hay foto o hay error
                     <div className="w-32 h-32 rounded-full bg-gradient-to-br from-indigo-400 to-indigo-600 flex items-center justify-center text-white shadow-lg">
                       {persona.nombre ? (
                         <span className="text-5xl font-bold">
@@ -196,27 +185,20 @@ const QRScannerApp = ({ onVolver }) => {
                   <InfoRow label="Email" value={persona.email} />
                 )}
                 <InfoRow label="Teléfono" value={persona.telefono} />
-                <InfoRow label="Último Pago" value={formatearFecha(persona.ultimoPago)} />
-                {dias !== null && (
-                  <InfoRow 
-                    label="Días transcurridos" 
-                    value={`${dias} ${dias === 1 ? 'día' : 'días'}`} 
-                  />
-                )}
                 <InfoRow label="Monto pagado" value={`S/ ${persona.monto}`} large />
               </div>
 
-              {/* Estado de pago */}
+              {/* Estado de empadronamiento */}
               <div className={`rounded-2xl p-6 md:p-8 text-center shadow-lg ${
-                alDia 
+                empadronado
                   ? 'bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-400' 
                   : 'bg-gradient-to-br from-red-50 to-red-100 border-2 border-red-400'
               }`}>
-                {alDia ? (
+                {empadronado ? (
                   <>
                     <CheckCircle size={56} className="mx-auto text-green-600 mb-3 md:mb-4" />
                     <h3 className="text-2xl md:text-3xl font-bold text-green-800 mb-2">
-                      ¡PAGOS AL DÍA!
+                      ¡EMPADRONADO!
                     </h3>
                     <p className="text-green-700 font-medium text-base md:text-lg">
                       Cliente en situación regular
@@ -226,18 +208,11 @@ const QRScannerApp = ({ onVolver }) => {
                   <>
                     <XCircle size={56} className="mx-auto text-red-600 mb-3 md:mb-4" />
                     <h3 className="text-2xl md:text-3xl font-bold text-red-800 mb-2">
-                      PAGO PENDIENTE
+                      NO EMPADRONADO
                     </h3>
                     <p className="text-red-700 font-medium text-base md:text-lg">
-                      Requiere actualización de pago
+                      Requiere empadronamiento
                     </p>
-                    {dias > 30 && (
-                      <div className="mt-4 bg-red-200 rounded-lg p-3">
-                        <p className="text-red-800 text-lg md:text-xl font-bold">
-                          ⚠️ Mora: {dias - 30} días
-                        </p>
-                      </div>
-                    )}
                   </>
                 )}
               </div>
@@ -377,7 +352,7 @@ const QRScannerApp = ({ onVolver }) => {
             Escáner QR
           </h1>
           <p className="text-gray-600 text-lg">
-            Verifica el estado de pagos al instante
+            Verifica el estado de empadronamiento al instante
           </p>
         </div>
 

@@ -1,6 +1,7 @@
-import React from 'react'; //
+// src/components/PersonasList.jsx
+
+import React from 'react';
 import { CheckCircle, XCircle, QrCode, Trash2 } from 'lucide-react';
-import { verificarPagoAlDia, formatearFecha, diasDesdeUltimoPago } from '../utils/dateUtils';
 
 const PersonasList = ({ personas, onGenerarQR, onEliminar }) => {
   if (personas.length === 0) {
@@ -20,52 +21,58 @@ const PersonasList = ({ personas, onGenerarQR, onEliminar }) => {
             <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Nombre</th>
             <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">DNI</th>
             <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Email</th>
-            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Último Pago</th>
+            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Teléfono</th>
             <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Monto</th>
             <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Estado</th>
             <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Acciones</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-200">
-          {personas.map((persona, index) => {
-            const alDia = verificarPagoAlDia(persona.ultimoPago);
-            const dias = diasDesdeUltimoPago(persona.ultimoPago);
+          {personas.map((persona) => {
+            const empadronado = persona.empadronado || false;
 
             return (
-              <tr key={persona.id || index} className="hover:bg-gray-50">
+              <tr key={persona.id} className="hover:bg-gray-50">
                 <td className="px-4 py-4 text-sm text-gray-900 font-medium">
-                  {persona.nombre}
+                  <div className="flex items-center gap-2">
+                    {persona.foto && (
+                      <img 
+                        src={persona.foto} 
+                        alt={persona.nombre}
+                        className="w-8 h-8 rounded-full object-cover border-2 border-gray-200"
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                        }}
+                      />
+                    )}
+                    <span>{persona.nombre}</span>
+                  </div>
                 </td>
                 <td className="px-4 py-4 text-sm text-gray-600">{persona.dni}</td>
-                <td className="px-4 py-4 text-sm text-gray-600">{persona.email}</td>
                 <td className="px-4 py-4 text-sm text-gray-600">
-                  {formatearFecha(persona.ultimoPago)}
-                  {dias !== null && (
-                    <span className="text-xs text-gray-400 block">
-                      hace {dias} {dias === 1 ? 'día' : 'días'}
-                    </span>
-                  )}
+                  {persona.email || <span className="text-gray-400 italic">Sin email</span>}
                 </td>
+                <td className="px-4 py-4 text-sm text-gray-600">{persona.telefono}</td>
                 <td className="px-4 py-4 text-sm text-gray-600">
-                  S/ {persona.monto.toFixed(2)}
+                  S/ {parseFloat(persona.monto || 0).toFixed(2)}
                 </td>
                 <td className="px-4 py-4">
-                  {alDia ? (
-                    <span className="flex items-center gap-1 text-green-600 text-sm">
+                  {empadronado ? (
+                    <span className="flex items-center gap-1 text-green-600 text-sm font-medium">
                       <CheckCircle size={16} />
-                      Al día
+                      Empadronado
                     </span>
                   ) : (
-                    <span className="flex items-center gap-1 text-red-600 text-sm">
+                    <span className="flex items-center gap-1 text-red-600 text-sm font-medium">
                       <XCircle size={16} />
-                      Pendiente
+                      No empadronado
                     </span>
                   )}
                 </td>
                 <td className="px-4 py-4">
                   <div className="flex gap-2">
                     <button
-                      onClick={() => onGenerarQR(persona, alDia)}
+                      onClick={() => onGenerarQR(persona, empadronado)}
                       className="flex items-center gap-1 bg-indigo-100 text-indigo-700 px-3 py-1 rounded-lg hover:bg-indigo-200 transition text-sm"
                       title="Generar QR"
                     >
@@ -73,7 +80,7 @@ const PersonasList = ({ personas, onGenerarQR, onEliminar }) => {
                       QR
                     </button>
                     <button
-                      onClick={() => onEliminar(index)}
+                      onClick={() => onEliminar(persona.id)}
                       className="flex items-center gap-1 bg-red-100 text-red-700 px-3 py-1 rounded-lg hover:bg-red-200 transition text-sm"
                       title="Eliminar"
                     >

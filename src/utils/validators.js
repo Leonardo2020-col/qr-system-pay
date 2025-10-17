@@ -26,13 +26,7 @@ export const validarNombre = (nombre) => {
 };
 
 export const validarMonto = (monto) => {
-  return !isNaN(monto) && parseFloat(monto) > 0;
-};
-
-export const validarFecha = (fecha) => {
-  if (!fecha) return false;
-  const date = new Date(fecha);
-  return !isNaN(date.getTime());
+  return !isNaN(monto) && parseFloat(monto) >= 0;
 };
 
 export const validarPersona = (persona) => {
@@ -55,12 +49,8 @@ export const validarPersona = (persona) => {
     errores.telefono = 'El teléfono debe tener 9 dígitos';
   }
 
-  if (!validarFecha(persona.ultimoPago)) {
-    errores.ultimoPago = 'Fecha inválida';
-  }
-
   if (!validarMonto(persona.monto)) {
-    errores.monto = 'El monto debe ser mayor a 0';
+    errores.monto = 'El monto debe ser mayor o igual a 0';
   }
 
   return {
