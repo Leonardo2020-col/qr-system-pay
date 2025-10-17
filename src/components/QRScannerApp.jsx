@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
-import { CheckCircle, XCircle, ArrowLeft, Camera, Home, Video, User } from 'lucide-react';
+import { CheckCircle, XCircle, ArrowLeft, Camera, Home, Video, User, Upload } from 'lucide-react';
 import supabaseService from '../services/supabaseService';
 
 const QRScannerApp = ({ onVolver }) => {
@@ -13,7 +13,9 @@ const QRScannerApp = ({ onVolver }) => {
   const [scannerStarted, setScannerStarted] = useState(false);
   const [imageError, setImageError] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [processingImage, setProcessingImage] = useState(false);
   const scannerRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     Html5Qrcode.getCameras().then(devices => {
@@ -105,6 +107,44 @@ const QRScannerApp = ({ onVolver }) => {
     setScannerStarted(false);
     setImageError(false);
     setImageLoaded(false);
+    setProcessingImage(false);
+  };
+
+  // Manejar subida de imagen QR
+  const handleFileUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('Por favor selecciona una imagen válida');
+      return;
+    }
+
+    setProcessingImage(true);
+
+    try {
+      const html5QrCode = new Html5Qrcode('qr-file-reader');
+      
+      const result = await html5QrCode.scanFile(file, true);
+      
+      // Procesar resultado
+      await onScanSuccess(result);
+      
+      html5QrCode.clear();
+    } catch (error) {
+      console.error('Error escaneando imagen:', error);
+      alert('No se pudo leer el código QR de la imagen. Intenta con otra imagen más clara.');
+    } finally {
+      setProcessingImage(false);
+      // Limpiar input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleUploadClick = () => {
+    fileInputRef.current?.click();
   };
 
   useEffect(() => {
@@ -371,26 +411,61 @@ const QRScannerApp = ({ onVolver }) => {
           </p>
         </div>
 
+        {/* Input oculto para subir imagen */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          onChange={handleFileUpload}
+          className="hidden"
+        />
+
+        {/* Elemento oculto para escanear archivos */}
+        <div id="qr-file-reader" style={{ display: 'none' }}></div>
+
         <div className="space-y-3">
           <button
             onClick={() => setScanning(true)}
-            className="w-full bg-gradient-to-r from-indigo-600 to-indigo-700 text-white px-6 py-5 rounded-xl hover:from-indigo-700 hover:to-indigo-800 transition font-bold text-xl shadow-lg"
+            disabled={processingImage}
+            className="w-full bg-gradient-to-r from-indigo-600 to-indigo-700 text-white px-6 py-5 rounded-xl hover:from-indigo-700 hover:to-indigo-800 transition font-bold text-xl shadow-lg disabled:opacity-50"
           >
             <Camera size={24} className="inline mr-2" />
             Abrir Escáner de Cámara
+          </button>
+
+          <button
+            onClick={handleUploadClick}
+            disabled={processingImage}
+            className="w-full bg-gradient-to-r from-green-600 to-green-700 text-white px-6 py-5 rounded-xl hover:from-green-700 hover:to-green-800 transition font-bold text-xl shadow-lg disabled:opacity-50"
+          >
+            {processingImage ? (
+              <>
+                <div className="inline-block animate-spin mr-2 h-6 w-6 border-4 border-white border-t-transparent rounded-full"></div>
+                Procesando...
+              </>
+            ) : (
+              <>
+                <Upload size={24} className="inline mr-2" />
+                Subir Imagen de QR
+              </>
+            )}
           </button>
         </div>
 
         <div className="mt-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-indigo-200 rounded-xl p-5">
           <p className="font-semibold text-indigo-900 mb-2">
-            📱 Instrucciones:
+            📱 Opciones:
           </p>
-          <ol className="text-sm text-indigo-800 space-y-1 list-decimal list-inside">
-            <li>Toca "Abrir Escáner de Cámara"</li>
-            <li>Selecciona la cámara que deseas usar</li>
-            <li>Presiona "Iniciar Escaneo"</li>
-            <li>Apunta al código QR del cliente</li>
-          </ol>
+          <ul className="text-sm text-indigo-800 space-y-2">
+            <li className="flex items-start gap-2">
+              <Camera size={16} className="mt-0.5 flex-shrink-0" />
+              <span><strong>Cámara:</strong> Escanea en tiempo real</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <Upload size={16} className="mt-0.5 flex-shrink-0" />
+              <span><strong>Subir imagen:</strong> Selecciona una foto del QR desde tu galería</span>
+            </li>
+          </ul>
         </div>
       </div>
     </div>
