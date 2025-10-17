@@ -14,54 +14,78 @@ const QRScannerApp = ({ onVolver }) => {
   const [imageError, setImageError] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [processingImage, setProcessingImage] = useState(false);
+  const [currentDNI, setCurrentDNI] = useState(null); // ✅ AGREGADO
   const scannerRef = useRef(null);
   const fileInputRef = useRef(null);
   const imgRef = useRef(null);
 
-  // Efecto para cargar la imagen cuando cambie la persona
+  // Efecto para cargar la imagen cuando cambie el DNI
   useEffect(() => {
+    // Reset de estados cuando no hay persona
+    if (!persona || !currentDNI) {
+      setImageLoaded(false);
+      setImageError(false);
+      return;
+    }
+
+    // Solo procesar si hay foto
     if (persona?.foto && persona.foto.trim() !== '') {
-      console.log('🔄 Cargando imagen para:', persona.nombre);
+      console.log('🔄 Iniciando carga de imagen para DNI:', currentDNI);
+      
+      // Reset inmediato de estados
       setImageLoaded(false);
       setImageError(false);
 
       // Precargar imagen usando objeto Image
       const img = new Image();
       let timeoutId;
+      let mounted = true;
       
       const handleLoad = () => {
-        console.log('✅ Imagen cargada exitosamente');
-        setImageLoaded(true);
-        setImageError(false);
+        if (mounted) {
+          console.log('✅ Imagen cargada exitosamente');
+          setImageLoaded(true);
+          setImageError(false);
+        }
         if (timeoutId) clearTimeout(timeoutId);
       };
       
-      const handleError = (e) => {
-        console.error('❌ Error cargando imagen:', e);
-        setImageError(true);
-        setImageLoaded(true);
+      const handleError = () => {
+        if (mounted) {
+          console.error('❌ Error cargando imagen');
+          setImageError(true);
+          setImageLoaded(true);
+        }
         if (timeoutId) clearTimeout(timeoutId);
       };
       
       img.addEventListener('load', handleLoad);
       img.addEventListener('error', handleError);
       
-      // Timeout de 8 segundos
+      // Timeout de 5 segundos
       timeoutId = setTimeout(() => {
-        console.warn('⏱️ Timeout: Imagen tardó más de 8 segundos');
-        setImageError(true);
-        setImageLoaded(true);
-      }, 8000);
+        if (mounted) {
+          console.warn('⏱️ Timeout: Imagen tardó más de 5 segundos');
+          setImageError(true);
+          setImageLoaded(true);
+        }
+      }, 5000);
       
       img.src = persona.foto;
       
       return () => {
+        mounted = false;
         img.removeEventListener('load', handleLoad);
         img.removeEventListener('error', handleError);
         if (timeoutId) clearTimeout(timeoutId);
+        img.src = '';
       };
+    } else {
+      // Si no hay foto, marcar como "cargado"
+      setImageLoaded(true);
+      setImageError(false);
     }
-  }, [persona?.foto, persona?.nombre]); // Solo cuando cambie la foto o el nombre
+  }, [currentDNI]); // ✅ SOLO DEPENDE DE currentDNI
 
   useEffect(() => {
     Html5Qrcode.getCameras().then(devices => {
@@ -120,6 +144,9 @@ const QRScannerApp = ({ onVolver }) => {
     try {
       const personaData = JSON.parse(decodedText);
       
+      // ✅ Establecer el DNI actual ANTES de buscar la foto
+      setCurrentDNI(personaData.dni);
+      
       // Buscar la foto en Supabase usando el DNI
       console.log('🔍 Buscando foto para DNI:', personaData.dni);
       
@@ -127,10 +154,8 @@ const QRScannerApp = ({ onVolver }) => {
         const personaCompleta = await supabaseService.buscarPorDNI(personaData.dni);
         
         if (personaCompleta && personaCompleta.foto_url) {
-          // Limpiar la URL y forzar HTTPS
           let fotoUrl = personaCompleta.foto_url.trim();
           
-          // Asegurar que sea HTTPS
           if (fotoUrl.startsWith('http:')) {
             fotoUrl = fotoUrl.replace('http:', 'https:');
           }
@@ -164,6 +189,7 @@ const QRScannerApp = ({ onVolver }) => {
   const handleReset = async () => {
     await stopScanning();
     setPersona(null);
+    setCurrentDNI(null); // ✅ AGREGADO
     setScanning(false);
     setScannerStarted(false);
     setImageError(false);
@@ -188,7 +214,6 @@ const QRScannerApp = ({ onVolver }) => {
       
       const result = await html5QrCode.scanFile(file, true);
       
-      // Procesar resultado
       await onScanSuccess(result);
       
       html5QrCode.clear();
@@ -197,7 +222,6 @@ const QRScannerApp = ({ onVolver }) => {
       alert('No se pudo leer el código QR de la imagen. Intenta con otra imagen más clara.');
     } finally {
       setProcessingImage(false);
-      // Limpiar input
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -319,8 +343,8 @@ const QRScannerApp = ({ onVolver }) => {
                 {/* CSS para animación de spinner */}
                 <style>{`
                   @keyframes spin {
-                    0% { transform: translate(-50%, -50%) rotate(0deg); }
-                    100% { transform: translate(-50%, -50%) rotate(360deg); }
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
                   }
                 `}</style>
                 
@@ -426,10 +450,8 @@ const QRScannerApp = ({ onVolver }) => {
               {scannerStarted ? 'Coloca el código QR frente a la cámara' : 'Selecciona una cámara y comienza'}
             </p>
             
-            {/* Área del escáner */}
             <div id="qr-reader" className="rounded-xl overflow-hidden mb-6 bg-gray-100" style={{ minHeight: '250px' }}></div>
             
-            {/* Selector de cámara */}
             {cameras.length > 0 && !scannerStarted && (
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -449,7 +471,6 @@ const QRScannerApp = ({ onVolver }) => {
               </div>
             )}
 
-            {/* Botones de acción */}
             <div className="space-y-3">
               {!scannerStarted ? (
                 <button
@@ -507,7 +528,6 @@ const QRScannerApp = ({ onVolver }) => {
           </p>
         </div>
 
-        {/* Input oculto para subir imagen */}
         <input
           ref={fileInputRef}
           type="file"
@@ -516,7 +536,6 @@ const QRScannerApp = ({ onVolver }) => {
           className="hidden"
         />
 
-        {/* Elemento oculto para escanear archivos */}
         <div id="qr-file-reader" style={{ display: 'none' }}></div>
 
         <div className="space-y-3">
@@ -568,7 +587,6 @@ const QRScannerApp = ({ onVolver }) => {
   );
 };
 
-// Componente auxiliar para filas de información
 const InfoRow = ({ label, value, large }) => (
   <div className="flex justify-between items-center py-3 border-b border-gray-100">
     <span className="text-gray-600 font-medium text-sm md:text-base">{label}:</span>
