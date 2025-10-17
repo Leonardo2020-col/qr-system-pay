@@ -18,41 +18,34 @@ const QRScannerApp = ({ onVolver }) => {
   const scannerRef = useRef(null);
   const fileInputRef = useRef(null);
   const imgRef = useRef(null);
-  const loadedDNIRef = useRef(null); // ✅ NUEVO: Rastrear DNI cargado
+  const loadedDNIRef = useRef(null);
 
   // Efecto para cargar la imagen cuando cambie el DNI
   useEffect(() => {
-    // Reset de estados cuando no hay DNI
     if (!currentDNI) {
       setImageLoaded(false);
       setImageError(false);
-      loadedDNIRef.current = null; // ✅ Reset del ref
+      loadedDNIRef.current = null;
       return;
     }
 
-    // Esperar a que persona esté disponible
     if (!persona) {
       return;
     }
 
-    // ✅ CRÍTICO: Si ya cargamos este DNI, no hacer nada
     if (loadedDNIRef.current === currentDNI) {
       console.log('⚠️ Imagen ya cargada para este DNI, evitando re-render');
       return;
     }
 
-    // Solo procesar si hay foto
     if (persona?.foto && persona.foto.trim() !== '') {
       console.log('🔄 Cargando imagen ÚNICA VEZ para DNI:', currentDNI);
       
-      // ✅ Marcar que estamos cargando este DNI
       loadedDNIRef.current = currentDNI;
       
-      // Reset inmediato de estados
       setImageLoaded(false);
       setImageError(false);
 
-      // Precargar imagen usando objeto Image
       const img = new Image();
       let timeoutId;
       let mounted = true;
@@ -78,7 +71,6 @@ const QRScannerApp = ({ onVolver }) => {
       img.addEventListener('load', handleLoad);
       img.addEventListener('error', handleError);
       
-      // Timeout de 5 segundos
       timeoutId = setTimeout(() => {
         if (mounted) {
           console.warn('⏱️ Timeout: Imagen tardó más de 5 segundos');
@@ -97,8 +89,7 @@ const QRScannerApp = ({ onVolver }) => {
         img.src = '';
       };
     } else {
-      // Si no hay foto, marcar como "cargado"
-      loadedDNIRef.current = currentDNI; // ✅ Marcar como procesado
+      loadedDNIRef.current = currentDNI;
       setImageLoaded(true);
       setImageError(false);
     }
@@ -140,6 +131,7 @@ const QRScannerApp = ({ onVolver }) => {
       );
 
       setScannerStarted(true);
+      setScanning(true);
     } catch (err) {
       console.error('Error iniciando escáner:', err);
       alert('Error al iniciar la cámara. Verifica los permisos.');
@@ -151,6 +143,7 @@ const QRScannerApp = ({ onVolver }) => {
       try {
         await scannerRef.current.stop();
         setScannerStarted(false);
+        setScanning(false);
       } catch (err) {
         console.error('Error deteniendo escáner:', err);
       }
@@ -161,16 +154,13 @@ const QRScannerApp = ({ onVolver }) => {
     try {
       const personaData = JSON.parse(decodedText);
       
-      // ⚠️ Prevenir llamadas duplicadas
       if (currentDNI === personaData.dni) {
         console.log('⚠️ DNI ya procesado, ignorando duplicado');
         return;
       }
       
-      // Establecer el DNI actual ANTES de buscar la foto
       setCurrentDNI(personaData.dni);
       
-      // Buscar la foto en Supabase usando el DNI
       console.log('🔍 Buscando foto ÚNICA VEZ para DNI:', personaData.dni);
       
       try {
@@ -213,7 +203,7 @@ const QRScannerApp = ({ onVolver }) => {
     await stopScanning();
     setPersona(null);
     setCurrentDNI(null);
-    loadedDNIRef.current = null; // ✅ Reset del ref
+    loadedDNIRef.current = null;
     setScanning(false);
     setScannerStarted(false);
     setImageError(false);
@@ -221,7 +211,6 @@ const QRScannerApp = ({ onVolver }) => {
     setProcessingImage(false);
   };
 
-  // Manejar subida de imagen QR
   const handleFileUpload = async (event) => {
     const file = event.target.files[0];
     if (!file) return;
@@ -271,7 +260,6 @@ const QRScannerApp = ({ onVolver }) => {
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
         <div className="max-w-md mx-auto">
           <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
-            {/* Header */}
             <div className="bg-gradient-to-r from-indigo-600 to-indigo-700 p-6 text-white">
               <div className="flex gap-2 mb-4">
                 <button
@@ -294,14 +282,11 @@ const QRScannerApp = ({ onVolver }) => {
               <h1 className="text-xl md:text-2xl font-bold">Información del Cliente</h1>
             </div>
 
-            {/* Contenido */}
             <div className="p-6 space-y-6">
-              {/* Foto y Nombre */}
               <div className="text-center pb-4 border-b-2 border-gray-100">
                 <div className="mb-4 flex justify-center items-center">
                   <div className="relative inline-block" style={{ width: '128px', height: '128px' }}>
                     {tieneFoto && imageLoaded && !imageError ? (
-                      // CASO 1: Imagen cargada exitosamente
                       <img 
                         ref={imgRef}
                         src={persona.foto}
@@ -316,7 +301,6 @@ const QRScannerApp = ({ onVolver }) => {
                         }}
                       />
                     ) : tieneFoto && !imageLoaded && !imageError ? (
-                      // CASO 2: Cargando imagen
                       <div 
                         style={{
                           width: '128px',
@@ -342,7 +326,6 @@ const QRScannerApp = ({ onVolver }) => {
                         />
                       </div>
                     ) : (
-                      // CASO 3: Sin foto o error cargando
                       <div 
                         style={{
                           width: '128px',
@@ -364,7 +347,6 @@ const QRScannerApp = ({ onVolver }) => {
                   </div>
                 </div>
                 
-                {/* CSS para animación de spinner */}
                 <style>{`
                   @keyframes spin {
                     0% { transform: rotate(0deg); }
@@ -378,7 +360,6 @@ const QRScannerApp = ({ onVolver }) => {
                 <p className="text-gray-500 font-medium">DNI: {persona.dni}</p>
               </div>
 
-              {/* Información detallada */}
               <div className="space-y-3">
                 {persona.email && persona.email.trim() !== '' && (
                   <InfoRow label="Email" value={persona.email} />
@@ -387,7 +368,6 @@ const QRScannerApp = ({ onVolver }) => {
                 <InfoRow label="Monto pagado" value={`S/ ${persona.monto}`} large />
               </div>
 
-              {/* Estado de empadronamiento */}
               <div className={`rounded-2xl p-6 md:p-8 text-center shadow-lg ${
                 empadronado
                   ? 'bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-400' 
@@ -416,7 +396,6 @@ const QRScannerApp = ({ onVolver }) => {
                 )}
               </div>
 
-              {/* Estado del QR */}
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                 <p className="text-xs text-blue-700">
                   <strong>Estado registrado:</strong> {persona.estado}
@@ -424,7 +403,6 @@ const QRScannerApp = ({ onVolver }) => {
               </div>
             </div>
 
-            {/* Footer */}
             <div className="bg-gray-50 p-4 text-center border-t">
               <p className="text-xs text-gray-500">
                 Escaneado: {new Date().toLocaleString('es-PE')}
@@ -441,8 +419,168 @@ const QRScannerApp = ({ onVolver }) => {
     );
   }
 
-  // [El resto del código permanece igual - vistas de scanning e inicio]
-  // ... (copiar el resto del código anterior)
+  // Vista: Escaneando
+  if (scanning) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+        <div className="max-w-md mx-auto">
+          <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
+            <div className="bg-gradient-to-r from-indigo-600 to-indigo-700 p-6 text-white">
+              <div className="flex gap-2 mb-4">
+                <button
+                  onClick={handleReset}
+                  className="flex items-center gap-2 hover:opacity-80 transition bg-white/20 px-3 py-2 rounded-lg text-sm"
+                >
+                  <ArrowLeft size={18} />
+                  <span>Cancelar</span>
+                </button>
+                {onVolver && (
+                  <button
+                    onClick={onVolver}
+                    className="flex items-center gap-2 hover:opacity-80 transition bg-white/20 px-3 py-2 rounded-lg text-sm ml-auto"
+                  >
+                    <Home size={18} />
+                    <span>Inicio</span>
+                  </button>
+                )}
+              </div>
+              <h1 className="text-xl md:text-2xl font-bold">Escaneando QR</h1>
+            </div>
+
+            <div className="p-6">
+              <div id="qr-reader" className="rounded-xl overflow-hidden mb-4"></div>
+              
+              {cameras.length > 1 && (
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Seleccionar cámara:
+                  </label>
+                  <select
+                    value={selectedCamera}
+                    onChange={(e) => setSelectedCamera(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                    disabled={scannerStarted}
+                  >
+                    {cameras.map((camera) => (
+                      <option key={camera.id} value={camera.id}>
+                        {camera.label || `Cámara ${camera.id}`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
+                <Camera size={32} className="mx-auto text-blue-600 mb-2" />
+                <p className="text-sm text-blue-700 font-medium">
+                  Apunta la cámara al código QR
+                </p>
+                <p className="text-xs text-blue-600 mt-1">
+                  La detección es automática
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div id="qr-file-reader" style={{ display: 'none' }}></div>
+      </div>
+    );
+  }
+
+  // Vista: Pantalla inicial
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+      <div className="max-w-md mx-auto">
+        <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
+          <div className="bg-gradient-to-r from-indigo-600 to-indigo-700 p-6 text-white">
+            {onVolver && (
+              <button
+                onClick={onVolver}
+                className="flex items-center gap-2 hover:opacity-80 transition mb-4 bg-white/20 px-3 py-2 rounded-lg text-sm"
+              >
+                <Home size={18} />
+                <span>Volver al inicio</span>
+              </button>
+            )}
+            <h1 className="text-2xl md:text-3xl font-bold">Escáner de QR</h1>
+            <p className="text-indigo-100 mt-2">Verifica el estado de empadronamiento</p>
+          </div>
+
+          <div className="p-6 space-y-4">
+            <div className="text-center mb-6">
+              <div className="w-24 h-24 mx-auto bg-gradient-to-br from-indigo-100 to-indigo-200 rounded-full flex items-center justify-center mb-4">
+                <Camera size={48} className="text-indigo-600" />
+              </div>
+              <h2 className="text-xl font-bold text-gray-800 mb-2">
+                Escanear código QR
+              </h2>
+              <p className="text-gray-600 text-sm">
+                Elige cómo deseas escanear el código
+              </p>
+            </div>
+
+            <button
+              onClick={startScanning}
+              disabled={cameras.length === 0}
+              className="w-full bg-gradient-to-r from-indigo-600 to-indigo-700 text-white py-4 px-6 rounded-xl hover:from-indigo-700 hover:to-indigo-800 transition shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+            >
+              <Video size={24} />
+              <span className="font-semibold text-lg">Usar Cámara</span>
+            </button>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-300"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-4 bg-white text-gray-500 font-medium">O</span>
+              </div>
+            </div>
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleFileUpload}
+              className="hidden"
+            />
+
+            <button
+              onClick={handleUploadClick}
+              disabled={processingImage}
+              className="w-full bg-white border-2 border-indigo-600 text-indigo-600 py-4 px-6 rounded-xl hover:bg-indigo-50 transition shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+            >
+              <Upload size={24} />
+              <span className="font-semibold text-lg">
+                {processingImage ? 'Procesando...' : 'Subir Imagen'}
+              </span>
+            </button>
+
+            {cameras.length === 0 && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-4">
+                <p className="text-sm text-yellow-700 text-center">
+                  ⚠️ No se detectaron cámaras. Puedes subir una imagen del QR.
+                </p>
+              </div>
+            )}
+
+            <div className="bg-gray-50 rounded-lg p-4 mt-6">
+              <h3 className="font-semibold text-gray-800 mb-2 flex items-center gap-2">
+                <User size={18} />
+                ¿Cómo funciona?
+              </h3>
+              <ul className="text-sm text-gray-600 space-y-2">
+                <li>• Escanea el código QR del cliente</li>
+                <li>• Verifica su estado de empadronamiento</li>
+                <li>• Visualiza sus datos de forma segura</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div id="qr-file-reader" style={{ display: 'none' }}></div>
+    </div>
+  );
 };
 
 const InfoRow = ({ label, value, large }) => (
