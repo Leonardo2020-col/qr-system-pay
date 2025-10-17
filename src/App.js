@@ -1,7 +1,7 @@
 // src/App.js
 
 import React, { useState } from 'react';
-import { UserPlus, RefreshCw, AlertCircle, QrCode, CloudUpload, LogIn, LogOut } from 'lucide-react';
+import { UserPlus, RefreshCw, AlertCircle, QrCode, Cloud, LogIn, LogOut } from 'lucide-react';
 import { useHybridData } from './hooks/useHybridData';
 import { generarQRCode } from './services/qrService';
 import PersonasList from './components/PersonasList';
@@ -130,7 +130,7 @@ function App() {
                       disabled={sincronizando || loading}
                       className="flex flex-col items-center justify-center gap-1 bg-blue-100 text-blue-700 px-2 py-3 rounded-lg hover:bg-blue-200 transition disabled:opacity-50"
                     >
-                      <CloudUpload className={`${sincronizando ? 'animate-bounce' : ''} w-[18px] h-[18px] md:w-5 md:h-5`} />
+                      <Cloud className={`${sincronizando ? 'animate-bounce' : ''} w-[18px] h-[18px] md:w-5 md:h-5`} />
                       <span className="text-xs font-medium">
                         {sincronizando ? 'Sync...' : 'Sheets'}
                       </span>
