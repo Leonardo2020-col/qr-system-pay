@@ -19,7 +19,7 @@ export const generarQRCode = async (persona, alDia) => {
   try {
     // Usar QuickChart API (gratis, sin límites, rápido)
     const encodedData = encodeURIComponent(textoQR);
-    const qrUrl = `https://quickchart.io/qr?text=${encodedData}&size=400&margin=2&dark=4F46E5&light=FFFFFF&ecLevel=M`;
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodedData}&color=4F46E5&bgcolor=FFFFFF`;
     
     console.log('✅ QR generado con QuickChart API');
     return qrUrl;
