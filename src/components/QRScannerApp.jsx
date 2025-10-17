@@ -157,7 +157,13 @@ const QRScannerApp = ({ onVolver }) => {
   if (persona) {
     const empadronado = persona.empadronado || false;
     const tieneFoto = persona.foto && persona.foto.trim() !== '';
-    const esUrlSupabase = tieneFoto && (persona.foto.includes('supabase') || persona.foto.startsWith('http'));
+
+    // Debug logs
+    console.log('📸 Persona completa:', persona);
+    console.log('📸 Tiene foto?', tieneFoto);
+    console.log('📸 URL:', persona.foto);
+    console.log('📸 Image error?', imageError);
+    console.log('📸 Image loaded?', imageLoaded);
 
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
@@ -190,35 +196,66 @@ const QRScannerApp = ({ onVolver }) => {
             <div className="p-6 space-y-6">
               {/* Foto y Nombre */}
               <div className="text-center pb-4 border-b-2 border-gray-100">
-                <div className="mb-4 flex justify-center">
+                {/* DEBUG: Mostrar info de foto */}
+                {tieneFoto && (
+                  <div className="mb-2 text-xs bg-yellow-50 p-2 rounded">
+                    <p>🔍 Debug - Tiene foto: {tieneFoto ? 'Sí' : 'No'}</p>
+                    <p className="break-all">URL: {persona.foto?.substring(0, 50)}...</p>
+                    <p>Error: {imageError ? 'Sí' : 'No'} | Cargada: {imageLoaded ? 'Sí' : 'No'}</p>
+                  </div>
+                )}
+                
+                <div className="mb-4 flex justify-center items-center">
                   {tieneFoto && !imageError ? (
-                    <div className="relative w-32 h-32">
-                      {/* Skeleton loader mientras carga */}
+                    <div className="relative inline-block">
+                      {/* Skeleton loader */}
                       {!imageLoaded && (
-                        <div className="absolute inset-0 w-32 h-32 rounded-full bg-gray-200 animate-pulse"></div>
+                        <div className="w-32 h-32 rounded-full bg-gray-300 animate-pulse"></div>
                       )}
+                      
+                      {/* Imagen */}
                       <img 
                         src={persona.foto} 
                         alt={persona.nombre}
-                        className={`w-32 h-32 rounded-full object-cover border-4 border-indigo-200 shadow-lg transition-opacity duration-300 ${
-                          imageLoaded ? 'opacity-100' : 'opacity-0'
-                        }`}
+                        crossOrigin="anonymous"
+                        style={{
+                          display: imageLoaded ? 'block' : 'none',
+                          width: '128px',
+                          height: '128px',
+                          borderRadius: '50%',
+                          objectFit: 'cover',
+                          border: '4px solid rgb(199, 210, 254)',
+                          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
+                        }}
                         onError={(e) => {
-                          console.error('❌ Error cargando imagen:', persona.foto);
+                          console.error('❌ Error cargando imagen:', e);
+                          console.error('❌ URL que falló:', persona.foto);
                           setImageError(true);
                           setImageLoaded(true);
                         }}
                         onLoad={() => {
-                          console.log('✅ Imagen cargada correctamente');
+                          console.log('✅ Imagen cargada exitosamente');
                           setImageError(false);
                           setImageLoaded(true);
                         }}
                       />
                     </div>
                   ) : (
-                    <div className="w-32 h-32 rounded-full bg-gradient-to-br from-indigo-400 to-indigo-600 flex items-center justify-center text-white shadow-lg">
+                    <div 
+                      style={{
+                        width: '128px',
+                        height: '128px',
+                        borderRadius: '50%',
+                        background: 'linear-gradient(to bottom right, rgb(129, 140, 248), rgb(79, 70, 229))',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: 'white',
+                        boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
+                      }}
+                    >
                       {persona.nombre ? (
-                        <span className="text-5xl font-bold">
+                        <span style={{ fontSize: '3rem', fontWeight: 'bold' }}>
                           {persona.nombre.charAt(0).toUpperCase()}
                         </span>
                       ) : (
