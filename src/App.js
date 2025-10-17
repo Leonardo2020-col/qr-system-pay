@@ -15,10 +15,16 @@ function App() {
     personas,
     loading,
     error,
+    sincronizando,
+    googleSheetsReady,
+    googleSheetsAuth,
     cargarPersonas,
     agregarPersona,
     eliminarPersona,
-  } = useSupabase();
+    sincronizarConGoogleSheets,
+    conectarGoogleSheets,
+    desconectarGoogleSheets,
+  } = useHybridData();
 
   const [busqueda, setBusqueda] = useState('');
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
@@ -61,6 +67,15 @@ function App() {
     }
   };
 
+  const handleSincronizar = async () => {
+    try {
+      await sincronizarConGoogleSheets();
+      alert('✅ Datos sincronizados con Google Sheets');
+    } catch (error) {
+      alert('❌ Error al sincronizar: ' + error.message);
+    }
+  };
+
   const personasFiltradas = personas.filter(
     (p) =>
       p.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
@@ -88,7 +103,7 @@ function App() {
               </p>
             </div>
             
-            <div className="grid grid-cols-2 gap-2 w-full">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 w-full">
               <button
                 onClick={() => setMostrarEscaner(true)}
                 className="flex flex-col items-center justify-center gap-1 bg-green-100 text-green-700 px-2 py-3 rounded-lg hover:bg-green-200 transition"
@@ -105,6 +120,40 @@ function App() {
                 <RefreshCw className={`${loading ? 'animate-spin' : ''} w-[18px] h-[18px] md:w-5 md:h-5`} />
                 <span className="text-xs font-medium">Actualizar</span>
               </button>
+
+              {/* Botón de Google Sheets */}
+              {googleSheetsReady && (
+                googleSheetsAuth ? (
+                  <>
+                    <button
+                      onClick={handleSincronizar}
+                      disabled={sincronizando || loading}
+                      className="flex flex-col items-center justify-center gap-1 bg-blue-100 text-blue-700 px-2 py-3 rounded-lg hover:bg-blue-200 transition disabled:opacity-50"
+                    >
+                      <CloudUpload className={`${sincronizando ? 'animate-bounce' : ''} w-[18px] h-[18px] md:w-5 md:h-5`} />
+                      <span className="text-xs font-medium">
+                        {sincronizando ? 'Sync...' : 'Sheets'}
+                      </span>
+                    </button>
+                    <button
+                      onClick={desconectarGoogleSheets}
+                      className="flex flex-col items-center justify-center gap-1 bg-red-100 text-red-700 px-2 py-3 rounded-lg hover:bg-red-200 transition"
+                    >
+                      <LogOut size={18} className="md:w-5 md:h-5" />
+                      <span className="text-xs font-medium">Salir</span>
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={conectarGoogleSheets}
+                    disabled={loading}
+                    className="flex flex-col items-center justify-center gap-1 bg-indigo-100 text-indigo-700 px-2 py-3 rounded-lg hover:bg-indigo-200 transition disabled:opacity-50 col-span-2"
+                  >
+                    <LogIn size={18} className="md:w-5 md:h-5" />
+                    <span className="text-xs font-medium">Conectar Sheets</span>
+                  </button>
+                )
+              )}
             </div>
           </div>
         </div>
