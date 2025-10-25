@@ -5,14 +5,122 @@ import { Html5Qrcode } from 'html5-qrcode';
 import { CheckCircle, XCircle, ArrowLeft, Camera, Home, Video, User, Upload } from 'lucide-react';
 import supabaseService from '../services/supabaseService';
 
+// ✅ Componente auxiliar para manejar carga de imágenes
+const FotoPersona = ({ foto, nombre }) => {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  if (!foto || foto.trim() === '') {
+    // Sin foto: mostrar inicial
+    return (
+      <div 
+        style={{
+          width: '128px',
+          height: '128px',
+          borderRadius: '50%',
+          background: 'linear-gradient(to bottom right, rgb(129, 140, 248), rgb(79, 70, 229))',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: 'white',
+          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
+        }}
+      >
+        <span style={{ fontSize: '3rem', fontWeight: 'bold' }}>
+          {nombre.charAt(0).toUpperCase()}
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {loading && !error && (
+        <div 
+          style={{
+            width: '128px',
+            height: '128px',
+            borderRadius: '50%',
+            background: 'linear-gradient(to bottom right, rgb(229, 231, 235), rgb(209, 213, 219))',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            border: '4px solid rgb(199, 210, 254)',
+            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
+          }}
+        >
+          <div 
+            style={{
+              width: '40px',
+              height: '40px',
+              border: '4px solid rgba(79, 70, 229, 0.3)',
+              borderTop: '4px solid rgb(79, 70, 229)',
+              borderRadius: '50%',
+              animation: 'spin 1s linear infinite'
+            }}
+          />
+        </div>
+      )}
+      
+      {error ? (
+        <div 
+          style={{
+            width: '128px',
+            height: '128px',
+            borderRadius: '50%',
+            background: 'linear-gradient(to bottom right, rgb(129, 140, 248), rgb(79, 70, 229))',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'white',
+            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
+          }}
+        >
+          <span style={{ fontSize: '3rem', fontWeight: 'bold' }}>
+            {nombre.charAt(0).toUpperCase()}
+          </span>
+        </div>
+      ) : (
+        <img 
+          src={foto}
+          alt={nombre}
+          onLoad={() => {
+            console.log('✅ Imagen cargada');
+            setLoading(false);
+          }}
+          onError={(e) => {
+            console.error('❌ Error cargando imagen');
+            setError(true);
+            setLoading(false);
+          }}
+          style={{
+            width: '128px',
+            height: '128px',
+            borderRadius: '50%',
+            objectFit: 'cover',
+            border: '4px solid rgb(199, 210, 254)',
+            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+            display: loading ? 'none' : 'block'
+          }}
+        />
+      )}
+      
+      <style>{`
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `}</style>
+    </>
+  );
+};
+
 const QRScannerApp = ({ onVolver }) => {
   const [persona, setPersona] = useState(null);
   const [scanning, setScanning] = useState(false);
   const [cameras, setCameras] = useState([]);
   const [selectedCamera, setSelectedCamera] = useState('');
   const [scannerStarted, setScannerStarted] = useState(false);
-  const [imageError, setImageError] = useState(false);
-  const [imageLoaded, setImageLoaded] = useState(false);
   const [processingImage, setProcessingImage] = useState(false);
   const [currentDNI, setCurrentDNI] = useState(null);
   const [camerasLoading, setCamerasLoading] = useState(true);
@@ -20,7 +128,6 @@ const QRScannerApp = ({ onVolver }) => {
   
   const scannerRef = useRef(null);
   const fileInputRef = useRef(null);
-  const loadedDNIRef = useRef(null);
 
   // ✅ Cargar cámaras al montar el componente
   useEffect(() => {
@@ -38,7 +145,8 @@ const QRScannerApp = ({ onVolver }) => {
           const backCamera = devices.find(d => 
             d.label.toLowerCase().includes('back') || 
             d.label.toLowerCase().includes('trasera') ||
-            d.label.toLowerCase().includes('rear')
+            d.label.toLowerCase().includes('rear') ||
+            d.label.toLowerCase().includes('environment')
           );
           
           setSelectedCamera(backCamera ? backCamera.id : devices[0].id);
@@ -58,81 +166,6 @@ const QRScannerApp = ({ onVolver }) => {
     getCameras();
   }, []);
 
-  // Efecto para cargar la imagen cuando cambie el DNI
-  useEffect(() => {
-    if (!currentDNI) {
-      setImageLoaded(false);
-      setImageError(false);
-      loadedDNIRef.current = null;
-      return;
-    }
-
-    if (!persona) {
-      return;
-    }
-
-    if (loadedDNIRef.current === currentDNI) {
-      console.log('⚠️ Imagen ya cargada para este DNI, evitando re-render');
-      return;
-    }
-
-    if (persona?.foto && persona.foto.trim() !== '') {
-      console.log('🔄 Cargando imagen ÚNICA VEZ para DNI:', currentDNI);
-      
-      loadedDNIRef.current = currentDNI;
-      
-      setImageLoaded(false);
-      setImageError(false);
-
-      const img = new Image();
-      let timeoutId;
-      let mounted = true;
-      
-      const handleLoad = () => {
-        if (mounted) {
-          console.log('✅ Imagen cargada exitosamente');
-          setImageLoaded(true);
-          setImageError(false);
-        }
-        if (timeoutId) clearTimeout(timeoutId);
-      };
-      
-      const handleError = () => {
-        if (mounted) {
-          console.error('❌ Error cargando imagen');
-          setImageError(true);
-          setImageLoaded(true);
-        }
-        if (timeoutId) clearTimeout(timeoutId);
-      };
-      
-      img.addEventListener('load', handleLoad);
-      img.addEventListener('error', handleError);
-      
-      timeoutId = setTimeout(() => {
-        if (mounted) {
-          console.warn('⏱️ Timeout: Imagen tardó más de 5 segundos');
-          setImageError(true);
-          setImageLoaded(true);
-        }
-      }, 5000);
-      
-      img.src = persona.foto;
-      
-      return () => {
-        mounted = false;
-        img.removeEventListener('load', handleLoad);
-        img.removeEventListener('error', handleError);
-        if (timeoutId) clearTimeout(timeoutId);
-        img.src = '';
-      };
-    } else {
-      loadedDNIRef.current = currentDNI;
-      setImageLoaded(true);
-      setImageError(false);
-    }
-  }, [currentDNI, persona]);
-
   const startScanning = async () => {
     if (!selectedCamera) {
       alert('Por favor selecciona una cámara');
@@ -140,25 +173,59 @@ const QRScannerApp = ({ onVolver }) => {
     }
 
     try {
+      // ✅ Limpiar escáner previo si existe
+      if (scannerRef.current) {
+        try {
+          await scannerRef.current.stop();
+          await scannerRef.current.clear();
+        } catch (e) {
+          console.log('No había escáner previo activo');
+        }
+      }
+
       const html5QrCode = new Html5Qrcode('qr-reader');
       scannerRef.current = html5QrCode;
 
+      // ✅ Configuración optimizada para móviles
+      const config = {
+        fps: 10,
+        qrbox: function(viewfinderWidth, viewfinderHeight) {
+          // Calcula el tamaño del cuadro de escaneo dinámicamente
+          let minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+          let qrboxSize = Math.floor(minEdge * 0.7);
+          return {
+            width: qrboxSize,
+            height: qrboxSize
+          };
+        },
+        aspectRatio: 1.0,
+      };
+
       await html5QrCode.start(
         selectedCamera,
-        {
-          fps: 10,
-          qrbox: { width: 250, height: 250 },
-        },
+        config,
         onScanSuccess,
         onScanError
       );
 
       setScannerStarted(true);
       setScanning(true);
-      console.log('✅ Escáner iniciado');
+      console.log('✅ Escáner iniciado correctamente');
     } catch (err) {
       console.error('❌ Error iniciando escáner:', err);
-      alert('Error al iniciar la cámara. Verifica los permisos.');
+      
+      // ✅ Mensajes de error específicos
+      if (err.name === 'NotAllowedError') {
+        alert('⚠️ Permiso de cámara denegado. Por favor, permite el acceso a la cámara en la configuración de tu navegador.');
+      } else if (err.name === 'NotFoundError') {
+        alert('⚠️ No se encontró ninguna cámara en tu dispositivo.');
+      } else if (err.name === 'NotReadableError') {
+        alert('⚠️ La cámara está siendo usada por otra aplicación. Cierra otras apps y vuelve a intentar.');
+      } else if (err.name === 'OverconstrainedError') {
+        alert('⚠️ No se pudo iniciar la cámara con la configuración solicitada.');
+      } else {
+        alert('❌ Error al iniciar la cámara: ' + err.message);
+      }
     }
   };
 
@@ -166,6 +233,7 @@ const QRScannerApp = ({ onVolver }) => {
     if (scannerRef.current && scannerStarted) {
       try {
         await scannerRef.current.stop();
+        await scannerRef.current.clear();
         setScannerStarted(false);
         setScanning(false);
         console.log('✅ Escáner detenido');
@@ -184,55 +252,61 @@ const QRScannerApp = ({ onVolver }) => {
         return;
       }
       
-      setCurrentDNI(personaData.dni);
+      console.log('📋 Datos del QR:', personaData);
       
-      console.log('🔍 Buscando foto ÚNICA VEZ para DNI:', personaData.dni);
-      
+      // ✅ Buscar persona completa en Supabase
       try {
         const personaCompleta = await supabaseService.buscarPorDNI(personaData.dni);
         
-        if (personaCompleta && personaCompleta.foto_url) {
-          let fotoUrl = personaCompleta.foto_url.trim();
+        if (personaCompleta) {
+          console.log('✅ Persona encontrada en Supabase');
           
-          if (fotoUrl.startsWith('http:')) {
-            fotoUrl = fotoUrl.replace('http:', 'https:');
+          // ✅ Usar foto de Supabase si existe
+          if (personaCompleta.foto_url && personaCompleta.foto_url.trim() !== '') {
+            let fotoUrl = personaCompleta.foto_url.trim();
+            
+            // Forzar HTTPS
+            if (fotoUrl.startsWith('http:')) {
+              fotoUrl = fotoUrl.replace('http:', 'https:');
+            }
+            
+            personaData.foto = fotoUrl;
+            console.log('🖼️ Foto URL:', fotoUrl);
+          } else {
+            console.log('⚠️ Persona encontrada pero sin foto');
+            personaData.foto = null;
           }
-          
-          personaData.foto = fotoUrl;
-          console.log('✅ Foto encontrada y procesada');
         } else {
-          console.log('⚠️ No se encontró foto para este DNI');
+          console.log('⚠️ Persona no encontrada en Supabase');
           personaData.foto = null;
         }
       } catch (fotoError) {
-        console.error('❌ Error buscando foto en Supabase:', fotoError);
+        console.error('❌ Error buscando en Supabase:', fotoError);
         personaData.foto = null;
       }
       
+      // ✅ Establecer DNI y persona
+      setCurrentDNI(personaData.dni);
       setPersona(personaData);
       setScanning(false);
-      setImageError(false);
-      setImageLoaded(false);
-      stopScanning();
+      
+      await stopScanning();
     } catch (error) {
       console.error('❌ Error al parsear QR:', error);
-      alert('Código QR inválido. Intenta de nuevo.');
+      alert('Código QR inválido. Por favor, intenta de nuevo.');
     }
   };
 
   const onScanError = (err) => {
-    // Ignorar errores de escaneo continuo
+    // Ignorar errores de escaneo continuo para no saturar la consola
   };
 
   const handleReset = async () => {
     await stopScanning();
     setPersona(null);
     setCurrentDNI(null);
-    loadedDNIRef.current = null;
     setScanning(false);
     setScannerStarted(false);
-    setImageError(false);
-    setImageLoaded(false);
     setProcessingImage(false);
   };
 
@@ -281,7 +355,6 @@ const QRScannerApp = ({ onVolver }) => {
   // ========================================
   if (persona) {
     const empadronado = persona.empadronado || false;
-    const tieneFoto = persona.foto && persona.foto.trim() !== '';
 
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
@@ -312,73 +385,8 @@ const QRScannerApp = ({ onVolver }) => {
             <div className="p-6 space-y-6">
               <div className="text-center pb-4 border-b-2 border-gray-100">
                 <div className="mb-4 flex justify-center items-center">
-                  <div className="relative inline-block" style={{ width: '128px', height: '128px' }}>
-                    {tieneFoto && imageLoaded && !imageError ? (
-                      <img 
-                        src={persona.foto}
-                        alt={persona.nombre}
-                        style={{
-                          width: '128px',
-                          height: '128px',
-                          borderRadius: '50%',
-                          objectFit: 'cover',
-                          border: '4px solid rgb(199, 210, 254)',
-                          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
-                        }}
-                      />
-                    ) : tieneFoto && !imageLoaded && !imageError ? (
-                      <div 
-                        style={{
-                          width: '128px',
-                          height: '128px',
-                          borderRadius: '50%',
-                          background: 'linear-gradient(to bottom right, rgb(229, 231, 235), rgb(209, 213, 219))',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          border: '4px solid rgb(199, 210, 254)',
-                          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
-                        }}
-                      >
-                        <div 
-                          style={{
-                            width: '40px',
-                            height: '40px',
-                            border: '4px solid rgba(79, 70, 229, 0.3)',
-                            borderTop: '4px solid rgb(79, 70, 229)',
-                            borderRadius: '50%',
-                            animation: 'spin 1s linear infinite'
-                          }}
-                        />
-                      </div>
-                    ) : (
-                      <div 
-                        style={{
-                          width: '128px',
-                          height: '128px',
-                          borderRadius: '50%',
-                          background: 'linear-gradient(to bottom right, rgb(129, 140, 248), rgb(79, 70, 229))',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: 'white',
-                          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
-                        }}
-                      >
-                        <span style={{ fontSize: '3rem', fontWeight: 'bold' }}>
-                          {persona.nombre.charAt(0).toUpperCase()}
-                        </span>
-                      </div>
-                    )}
-                  </div>
+                  <FotoPersona foto={persona.foto} nombre={persona.nombre} />
                 </div>
-                
-                <style>{`
-                  @keyframes spin {
-                    0% { transform: rotate(0deg); }
-                    100% { transform: rotate(360deg); }
-                  }
-                `}</style>
                 
                 <h2 className="text-2xl md:text-3xl font-bold text-gray-800 mb-2">
                   {persona.nombre}

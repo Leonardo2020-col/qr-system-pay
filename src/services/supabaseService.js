@@ -12,6 +12,7 @@ class SupabaseService {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
+      console.log('✅ Personas obtenidas:', data.length);
       return data;
     } catch (error) {
       console.error('❌ Error obteniendo personas:', error);
@@ -113,6 +114,36 @@ class SupabaseService {
     }
   }
 
+  // ✅ Buscar persona por DNI (CORREGIDO)
+  async buscarPorDNI(dni) {
+    try {
+      console.log('🔍 Buscando persona con DNI:', dni);
+      
+      const { data, error } = await supabase
+        .from('personas')
+        .select('*')
+        .eq('dni', dni);
+        // ❌ NO usar .single() porque da error si no hay resultados
+
+      if (error) {
+        console.error('❌ Error en query:', error);
+        throw error;
+      }
+      
+      // ✅ Verificar si hay resultados
+      if (data && data.length > 0) {
+        console.log('✅ Persona encontrada:', data[0]);
+        return data[0];
+      }
+      
+      console.log('⚠️ No se encontró persona con DNI:', dni);
+      return null;
+    } catch (error) {
+      console.error('❌ Error buscando persona:', error.message);
+      return null;
+    }
+  }
+
   // Subir foto a Supabase Storage
   async subirFoto(base64, dni) {
     try {
@@ -171,23 +202,6 @@ class SupabaseService {
     }
 
     return new Blob([new Uint8Array(byteArrays)], { type: mimeType });
-  }
-
-  // Buscar persona por DNI
-  async buscarPorDNI(dni) {
-    try {
-      const { data, error } = await supabase
-        .from('personas')
-        .select('*')
-        .eq('dni', dni)
-        .single();
-
-      if (error) throw error;
-      return data;
-    } catch (error) {
-      console.error('❌ Error buscando persona:', error);
-      return null;
-    }
   }
 }
 
