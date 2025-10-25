@@ -5,25 +5,46 @@
     <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
     <meta name="theme-color" content="#4F46E5" />
-    <meta name="description" content="Sistema de gestión de pagos con códigos QR" />
+    <meta name="description" content="Sistema de gestión de empadronamiento y códigos QR" />
     
     <!-- PWA - Apple -->
     <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="QR Pagos" />
+    <meta name="apple-mobile-web-app-title" content="Sistema QR" />
     
     <!-- PWA - Manifest -->
     <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
     
-    <title>Sistema QR - Gestión de Pagos</title>
+    <!-- Optimización de carga -->
+    <link rel="preconnect" href="https://apis.google.com" />
+    <link rel="preconnect" href="https://accounts.google.com" />
     
-    <!-- Google Identity Services -->
+    <title>Sistema QR - Gestión de Empadronamiento</title>
+    
+    <!-- Google API - Scripts cargados correctamente -->
+    <script src="https://apis.google.com/js/api.js" defer></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
-    <script src="https://apis.google.com/js/api.js"></script>
   </head>
   <body>
-    <noscript>Necesitas habilitar JavaScript para usar esta aplicación.</noscript>
+    <noscript>
+      <div style="
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        font-family: system-ui, -apple-system, sans-serif;
+        text-align: center;
+        padding: 20px;
+      ">
+        <div>
+          <h1 style="color: #4F46E5; margin-bottom: 10px;">⚠️ JavaScript Requerido</h1>
+          <p style="color: #6B7280;">
+            Necesitas habilitar JavaScript en tu navegador para usar esta aplicación.
+          </p>
+        </div>
+      </div>
+    </noscript>
     <div id="root"></div>
   </body>
 </html>

@@ -15,10 +15,48 @@ const QRScannerApp = ({ onVolver }) => {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [processingImage, setProcessingImage] = useState(false);
   const [currentDNI, setCurrentDNI] = useState(null);
+  const [camerasLoading, setCamerasLoading] = useState(true);
+  const [cameraError, setCameraError] = useState(null);
+  
   const scannerRef = useRef(null);
   const fileInputRef = useRef(null);
-  const imgRef = useRef(null);
   const loadedDNIRef = useRef(null);
+
+  // ✅ Cargar cámaras al montar el componente
+  useEffect(() => {
+    const getCameras = async () => {
+      try {
+        setCamerasLoading(true);
+        setCameraError(null);
+        
+        const devices = await Html5Qrcode.getCameras();
+        
+        if (devices && devices.length > 0) {
+          setCameras(devices);
+          
+          // Buscar cámara trasera primero
+          const backCamera = devices.find(d => 
+            d.label.toLowerCase().includes('back') || 
+            d.label.toLowerCase().includes('trasera') ||
+            d.label.toLowerCase().includes('rear')
+          );
+          
+          setSelectedCamera(backCamera ? backCamera.id : devices[0].id);
+          console.log('✅ Cámaras encontradas:', devices.length);
+        } else {
+          setCameraError('No se encontraron cámaras disponibles');
+          console.warn('⚠️ No hay cámaras disponibles');
+        }
+      } catch (err) {
+        console.error('❌ Error obteniendo cámaras:', err);
+        setCameraError('Error al acceder a la cámara. Verifica los permisos.');
+      } finally {
+        setCamerasLoading(false);
+      }
+    };
+
+    getCameras();
+  }, []);
 
   // Efecto para cargar la imagen cuando cambie el DNI
   useEffect(() => {
@@ -95,21 +133,6 @@ const QRScannerApp = ({ onVolver }) => {
     }
   }, [currentDNI, persona]);
 
-  useEffect(() => {
-    Html5Qrcode.getCameras().then(devices => {
-      if (devices && devices.length) {
-        setCameras(devices);
-        const backCamera = devices.find(d => 
-          d.label.toLowerCase().includes('back') || 
-          d.label.toLowerCase().includes('trasera')
-        );
-        setSelectedCamera(backCamera ? backCamera.id : devices[0].id);
-      }
-    }).catch(err => {
-      console.error('Error obteniendo cámaras:', err);
-    });
-  }, []);
-
   const startScanning = async () => {
     if (!selectedCamera) {
       alert('Por favor selecciona una cámara');
@@ -132,8 +155,9 @@ const QRScannerApp = ({ onVolver }) => {
 
       setScannerStarted(true);
       setScanning(true);
+      console.log('✅ Escáner iniciado');
     } catch (err) {
-      console.error('Error iniciando escáner:', err);
+      console.error('❌ Error iniciando escáner:', err);
       alert('Error al iniciar la cámara. Verifica los permisos.');
     }
   };
@@ -144,8 +168,9 @@ const QRScannerApp = ({ onVolver }) => {
         await scannerRef.current.stop();
         setScannerStarted(false);
         setScanning(false);
+        console.log('✅ Escáner detenido');
       } catch (err) {
-        console.error('Error deteniendo escáner:', err);
+        console.error('❌ Error deteniendo escáner:', err);
       }
     }
   };
@@ -190,7 +215,7 @@ const QRScannerApp = ({ onVolver }) => {
       setImageLoaded(false);
       stopScanning();
     } catch (error) {
-      console.error('Error al parsear QR:', error);
+      console.error('❌ Error al parsear QR:', error);
       alert('Código QR inválido. Intenta de nuevo.');
     }
   };
@@ -231,7 +256,7 @@ const QRScannerApp = ({ onVolver }) => {
       
       html5QrCode.clear();
     } catch (error) {
-      console.error('Error escaneando imagen:', error);
+      console.error('❌ Error escaneando imagen:', error);
       alert('No se pudo leer el código QR de la imagen. Intenta con otra imagen más clara.');
     } finally {
       setProcessingImage(false);
@@ -251,7 +276,9 @@ const QRScannerApp = ({ onVolver }) => {
     };
   }, []);
 
-  // Vista: Mostrar información de la persona
+  // ========================================
+  // VISTA: Mostrar información de la persona
+  // ========================================
   if (persona) {
     const empadronado = persona.empadronado || false;
     const tieneFoto = persona.foto && persona.foto.trim() !== '';
@@ -288,7 +315,6 @@ const QRScannerApp = ({ onVolver }) => {
                   <div className="relative inline-block" style={{ width: '128px', height: '128px' }}>
                     {tieneFoto && imageLoaded && !imageError ? (
                       <img 
-                        ref={imgRef}
                         src={persona.foto}
                         alt={persona.nombre}
                         style={{
@@ -419,7 +445,9 @@ const QRScannerApp = ({ onVolver }) => {
     );
   }
 
-  // Vista: Escaneando
+  // ========================================
+  // VISTA: Escaneando
+  // ========================================
   if (scanning) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
@@ -450,6 +478,7 @@ const QRScannerApp = ({ onVolver }) => {
             <div className="p-6">
               <div id="qr-reader" className="rounded-xl overflow-hidden mb-4"></div>
               
+              {/* ✅ Selector de cámara solo si hay múltiples */}
               {cameras.length > 1 && (
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -487,7 +516,9 @@ const QRScannerApp = ({ onVolver }) => {
     );
   }
 
-  // Vista: Pantalla inicial
+  // ========================================
+  // VISTA: Pantalla inicial
+  // ========================================
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
       <div className="max-w-md mx-auto">
@@ -519,14 +550,31 @@ const QRScannerApp = ({ onVolver }) => {
               </p>
             </div>
 
-            <button
-              onClick={startScanning}
-              disabled={cameras.length === 0}
-              className="w-full bg-gradient-to-r from-indigo-600 to-indigo-700 text-white py-4 px-6 rounded-xl hover:from-indigo-700 hover:to-indigo-800 transition shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
-            >
-              <Video size={24} />
-              <span className="font-semibold text-lg">Usar Cámara</span>
-            </button>
+            {/* ✅ Mostrar estado de carga de cámaras */}
+            {camerasLoading ? (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
+                <div className="animate-spin w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full mx-auto mb-2"></div>
+                <p className="text-sm text-blue-700">Detectando cámaras...</p>
+              </div>
+            ) : cameraError ? (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <p className="text-sm text-yellow-700 text-center">
+                  ⚠️ {cameraError}
+                </p>
+                <p className="text-xs text-yellow-600 text-center mt-2">
+                  Puedes usar la opción de subir imagen
+                </p>
+              </div>
+            ) : (
+              <button
+                onClick={startScanning}
+                disabled={cameras.length === 0}
+                className="w-full bg-gradient-to-r from-indigo-600 to-indigo-700 text-white py-4 px-6 rounded-xl hover:from-indigo-700 hover:to-indigo-800 transition shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+              >
+                <Video size={24} />
+                <span className="font-semibold text-lg">Usar Cámara</span>
+              </button>
+            )}
 
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
@@ -556,14 +604,6 @@ const QRScannerApp = ({ onVolver }) => {
               </span>
             </button>
 
-            {cameras.length === 0 && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-4">
-                <p className="text-sm text-yellow-700 text-center">
-                  ⚠️ No se detectaron cámaras. Puedes subir una imagen del QR.
-                </p>
-              </div>
-            )}
-
             <div className="bg-gray-50 rounded-lg p-4 mt-6">
               <h3 className="font-semibold text-gray-800 mb-2 flex items-center gap-2">
                 <User size={18} />
@@ -583,6 +623,7 @@ const QRScannerApp = ({ onVolver }) => {
   );
 };
 
+// ✅ Componente auxiliar para mostrar información
 const InfoRow = ({ label, value, large }) => (
   <div className="flex justify-between items-center py-3 border-b border-gray-100">
     <span className="text-gray-600 font-medium text-sm md:text-base">{label}:</span>

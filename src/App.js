@@ -2,8 +2,7 @@
 
 import React, { useState } from 'react';
 import { UserPlus, RefreshCw, AlertCircle, QrCode, Cloud, LogIn, LogOut } from 'lucide-react';
-//import { useHybridData } from './hooks/useHybridData';
-import { useSupabase } from './hooks/useSupabase';
+import { useHybridData } from './hooks/useHybridData';
 import { generarQRCode } from './services/qrService';
 import PersonasList from './components/PersonasList';
 import PersonaForm from './components/PersonaForm';
@@ -13,13 +12,19 @@ import QRScannerApp from './components/QRScannerApp';
 
 function App() {
   const { 
-  personas, 
-  loading, 
-  error, 
-  cargarPersonas, 
-  agregarPersona, 
-  eliminarPersona 
-} = useSupabase();
+    personas, 
+    loading, 
+    error, 
+    sincronizando,
+    googleSheetsReady,
+    googleSheetsAuth,
+    cargarPersonas, 
+    agregarPersona, 
+    eliminarPersona,
+    sincronizarConGoogleSheets,
+    conectarGoogleSheets,
+    desconectarGoogleSheets,
+  } = useHybridData();
 
   const [busqueda, setBusqueda] = useState('');
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
@@ -116,7 +121,7 @@ function App() {
                 <span className="text-xs font-medium">Actualizar</span>
               </button>
 
-              {/* Botón de Google Sheets */}
+              {/* Botones de Google Sheets */}
               {googleSheetsReady && (
                 googleSheetsAuth ? (
                   <>
