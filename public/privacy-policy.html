@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Política de Privacidad - Sistema de Gestión QR</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: #667eea;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .last-updated {
+            color: #666;
+            font-size: 0.9rem;
+            margin-bottom: 30px;
+            font-style: italic;
+        }
+
+        h2 {
+            color: #764ba2;
+            font-size: 1.8rem;
+            margin-top: 30px;
+            margin-bottom: 15px;
+        }
+
+        h3 {
+            color: #555;
+            font-size: 1.3rem;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+
+        p {
+            margin-bottom: 15px;
+            text-align: justify;
+        }
+
+        ul, ol {
+            margin-left: 30px;
+            margin-bottom: 15px;
+        }
+
+        li {
+            margin-bottom: 8px;
+        }
+
+        .highlight {
+            background-color: #f0f4ff;
+            padding: 15px;
+            border-left: 4px solid #667eea;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+
+        .contact-info {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 30px;
+        }
+
+        .contact-info h3 {
+            margin-top: 0;
+        }
+
+        strong {
+            color: #667eea;
+        }
+
+        a {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        code {
+            background: #f5f5f5;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+            font-size: 0.9em;
+        }
+
+        .back-button {
+            display: inline-block;
+            margin-bottom: 20px;
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            border-radius: 5px;
+            text-decoration: none;
+            transition: background 0.3s;
+        }
+
+        .back-button:hover {
+            background: #764ba2;
+            text-decoration: none;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+
+            h1 {
+                font-size: 2rem;
+            }
+
+            h2 {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/" class="back-button">← Volver a la App</a>
+
+        <h1>Política de Privacidad</h1>
+        <p class="last-updated">Última actualización: <strong>26 de octubre de 2025</strong></p>
+
+        <div class="highlight">
+            <p><strong>Sistema de Gestión QR</strong> se compromete a proteger su privacidad. Esta política describe cómo recopilamos, usamos y protegemos su información personal cuando utiliza nuestra aplicación.</p>
+        </div>
+
+        <h2>1. Información que Recopilamos</h2>
+        <p>Nuestra aplicación recopila y procesa la siguiente información:</p>
+        <ul>
+            <li><strong>Datos Personales:</strong> Nombre completo, DNI, correo electrónico, número de teléfono</li>
+            <li><strong>Datos Financieros:</strong> Montos de pagos y estado de empadronamiento</li>
+            <li><strong>Imágenes:</strong> Fotografías de perfil (opcional, proporcionadas voluntariamente por el usuario)</li>
+            <li><strong>Códigos QR:</strong> Códigos generados que contienen información de identificación</li>
+            <li><strong>Datos de Autenticación:</strong> Tokens de acceso de Google (temporales y encriptados)</li>
+            <li><strong>Estatus Mensual:</strong> Registro del estado mensual de cada cliente</li>
+        </ul>
+
+        <h2>2. Cómo Usamos Su Información</h2>
+        <p>Utilizamos la información recopilada para los siguientes propósitos:</p>
+        <ol>
+            <li><strong>Gestión de Usuarios:</strong> Administrar y mantener registros de clientes</li>
+            <li><strong>Generación de Códigos QR:</strong> Crear códigos QR únicos para verificación de identidad</li>
+            <li><strong>Sincronización de Datos:</strong> Sincronizar información entre Supabase y Google Sheets</li>
+            <li><strong>Verificación de Estado:</strong> Consultar y actualizar el estatus mensual de empadronamiento</li>
+            <li><strong>Mejora del Servicio:</strong> Analizar el uso de la aplicación para mejorar la experiencia del usuario</li>
+        </ol>
+
+        <h2>3. Almacenamiento y Seguridad de Datos</h2>
+        
+        <h3>3.1 Supabase (Base de Datos Principal)</h3>
+        <p>Todos los datos personales se almacenan de forma segura en <strong>Supabase</strong>, una plataforma de base de datos con las siguientes características de seguridad:</p>
+        <ul>
+            <li>Encriptación de datos en tránsito (SSL/TLS)</li>
+            <li>Encriptación de datos en reposo</li>
+            <li>Autenticación y autorización basada en roles</li>
+            <li>Copias de seguridad automáticas</li>
+            <li>Cumplimiento con estándares de seguridad internacionales</li>
+        </ul>
+
+        <h3>3.2 Google Sheets (Sincronización Opcional)</h3>
+        <p>Si el usuario autoriza la sincronización con Google Sheets:</p>
+        <ul>
+            <li>Los datos se sincronizan únicamente cuando el usuario lo solicita explícitamente</li>
+            <li>La conexión utiliza OAuth 2.0 para autenticación segura</li>
+            <li>Solo se accede a las hojas de cálculo específicas autorizadas por el usuario</li>
+            <li>El usuario puede revocar el acceso en cualquier momento desde su cuenta de Google</li>
+        </ul>
+
+        <h3>3.3 Fotografías</h3>
+        <p>Las imágenes de perfil se almacenan en el servicio de almacenamiento seguro de Supabase con:</p>
+        <ul>
+            <li>Compresión automática para optimizar el tamaño</li>
+            <li>URLs públicas generadas de forma segura</li>
+            <li>Control de acceso mediante políticas de seguridad</li>
+        </ul>
+
+        <h2>4. Acceso a la API de Google</h2>
+        
+        <div class="highlight">
+            <p><strong>Uso Limitado de Datos de Google:</strong> El uso de información recibida de las APIs de Google se adherirá a la <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank">Política de Datos de Usuario de los Servicios de API de Google</a>, incluidos los requisitos de uso limitado.</p>
+        </div>
+
+        <h3>4.1 Alcances (Scopes) Solicitados</h3>
+        <p>Nuestra aplicación solicita los siguientes permisos de Google:</p>
+        <ul>
+            <li><code>https://www.googleapis.com/auth/spreadsheets</code> - Para leer y escribir en Google Sheets</li>
+        </ul>
+
+        <h3>4.2 Cómo Usamos el Acceso a Google Sheets</h3>
+        <p>El acceso a Google Sheets se utiliza <strong>exclusivamente</strong> para:</p>
+        <ul>
+            <li>Sincronizar datos de clientes desde Supabase a Google Sheets</li>
+            <li>Facilitar la gestión y análisis de datos por parte del administrador</li>
+            <li>Crear copias de respaldo de información en formato de hoja de cálculo</li>
+        </ul>
+
+        <h3>4.3 Datos NO Compartidos con Terceros</h3>
+        <p>Los datos obtenidos de Google APIs <strong>NO se utilizan para:</strong></p>
+        <ul>
+            <li>Publicidad o marketing dirigido</li>
+            <li>Perfilado de usuarios</li>
+            <li>Venta o transferencia a terceros</li>
+            <li>Entrenamiento de modelos de inteligencia artificial</li>
+            <li>Cualquier propósito no relacionado directamente con la funcionalidad de la aplicación</li>
+        </ul>
+
+        <h2>5. Compartir Información</h2>
+        <p><strong>NO compartimos, vendemos ni divulgamos</strong> su información personal a terceros, excepto en las siguientes circunstancias:</p>
+        <ul>
+            <li><strong>Proveedores de Servicios:</strong> Supabase y Google (solo para almacenamiento y sincronización)</li>
+            <li><strong>Cumplimiento Legal:</strong> Si es requerido por ley o para proteger nuestros derechos legales</li>
+            <li><strong>Consentimiento del Usuario:</strong> Con su autorización explícita</li>
+        </ul>
+
+        <h2>6. Retención de Datos</h2>
+        <p>Conservamos su información personal mientras:</p>
+        <ul>
+            <li>Su cuenta esté activa en el sistema</li>
+            <li>Sea necesario para proporcionar nuestros servicios</li>
+            <li>Sea requerido por obligaciones legales o regulatorias</li>
+        </ul>
+        <p>Puede solicitar la eliminación de sus datos en cualquier momento contactándonos.</p>
+
+        <h2>7. Sus Derechos</h2>
+        <p>Usted tiene derecho a:</p>
+        <ul>
+            <li><strong>Acceder</strong> a sus datos personales almacenados en nuestro sistema</li>
+            <li><strong>Rectificar</strong> información incorrecta o incompleta</li>
+            <li><strong>Eliminar</strong> sus datos personales (derecho al olvido)</li>
+            <li><strong>Oponerse</strong> al procesamiento de sus datos</li>
+            <li><strong>Portabilidad</strong> de datos en formato estructurado</li>
+            <li><strong>Revocar</strong> el acceso a Google Sheets en cualquier momento</li>
+        </ul>
+
+        <h2>8. Seguridad</h2>
+        <p>Implementamos medidas técnicas y organizativas para proteger su información:</p>
+        <ul>
+            <li>Conexiones seguras HTTPS/SSL</li>
+            <li>Autenticación OAuth 2.0</li>
+            <li>Encriptación de datos sensibles</li>
+            <li>Acceso restringido a datos mediante políticas de seguridad</li>
+            <li>Monitoreo continuo de seguridad</li>
+            <li>Actualizaciones regulares de seguridad</li>
+        </ul>
+
+        <h2>9. Cookies y Tecnologías Similares</h2>
+        <p>Nuestra aplicación utiliza almacenamiento local del navegador para:</p>
+        <ul>
+            <li>Mantener la sesión del usuario</li>
+            <li>Guardar preferencias de configuración</li>
+            <li>Almacenar tokens de autenticación temporales</li>
+        </ul>
+        <p>No utilizamos cookies de terceros para rastreo o publicidad.</p>
+
+        <h2>10. Menores de Edad</h2>
+        <p>Nuestra aplicación no está dirigida a menores de 18 años. No recopilamos intencionalmente información de menores sin el consentimiento parental.</p>
+
+        <h2>11. Cambios a esta Política</h2>
+        <p>Nos reservamos el derecho de actualizar esta política de privacidad. Los cambios significativos serán notificados mediante:</p>
+        <ul>
+            <li>Actualización de la fecha de "Última actualización"</li>
+            <li>Notificación en la aplicación</li>
+            <li>Correo electrónico (si corresponde)</li>
+        </ul>
+
+        <h2>12. Revocación de Acceso a Google</h2>
+        <p>Puede revocar el acceso de nuestra aplicación a su cuenta de Google en cualquier momento:</p>
+        <ol>
+            <li>Visite <a href="https://myaccount.google.com/permissions" target="_blank">https://myaccount.google.com/permissions</a></li>
+            <li>Busque "Sistema de Gestión QR"</li>
+            <li>Haga clic en "Quitar acceso"</li>
+        </ol>
+
+        <h2>13. Cumplimiento Legal</h2>
+        <p>Esta aplicación cumple con:</p>
+        <ul>
+            <li><strong>Ley de Protección de Datos Personales (Perú)</strong> - Ley N° 29733</li>
+            <li><strong>GDPR</strong> (Reglamento General de Protección de Datos - UE)</li>
+            <li><strong>Google API Services User Data Policy</strong></li>
+        </ul>
+
+        <div class="contact-info">
+            <h3>📧 Contacto</h3>
+            <p>Si tiene preguntas, inquietudes o solicitudes sobre esta política de privacidad o el manejo de sus datos personales, puede contactarnos:</p>
+            <ul>
+                <li><strong>Email:</strong> <a href="mailto:soporte@tuempresa.com">soporte@tuempresa.com</a></li>
+                <li><strong>Sitio Web:</strong> <a href="https://qr-system-pago.vercel.app">https://qr-system-pago.vercel.app</a></li>
+            </ul>
+            <p><em>Tiempo de respuesta: 5 días hábiles</em></p>
+        </div>
+
+        <hr style="margin: 40px 0; border: none; border-top: 1px solid #ddd;">
+
+        <p style="text-align: center; color: #666; font-size: 0.9rem;">
+            <strong>Sistema de Gestión QR</strong> | Control de estatus mensual y generación de códigos QR<br>
+            © 2025 Todos los derechos reservados
+        </p>
+
+        <div style="text-align: center; margin-top: 20px;">
+            <a href="/" class="back-button">← Volver a la App</a>
+        </div>
+    </div>
+</body>
+</html>
