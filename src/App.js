@@ -1,6 +1,6 @@
 // src/App.js
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { UserPlus, RefreshCw, AlertCircle, QrCode, Cloud, LogIn, LogOut, Calendar } from 'lucide-react';
 import { useHybridData } from './hooks/useHybridData';
 import { generarQRCode } from './services/qrService';
@@ -13,13 +13,6 @@ import MonthStatusModal from './components/MonthStatusModal';
 import EditPersonaModal from './components/EditPersonaModal';
 import supabaseService from './services/supabaseService';
 import { diagnosticarGoogleSheets } from './utils/googleDiagnostic';
-
-React.useEffect(() => {
-  // Ejecutar diagnóstico después de 2 segundos (para que carguen los scripts)
-  setTimeout(() => {
-    diagnosticarGoogleSheets();
-  }, 2000);
-}, []);
 
 function App() {
   const { 
@@ -51,6 +44,15 @@ function App() {
   const [personaParaModal, setPersonaParaModal] = useState(null);
   const [anioSeleccionado, setAnioSeleccionado] = useState(new Date().getFullYear());
 
+  // ✅ Diagnóstico de Google Sheets (DENTRO del componente)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      diagnosticarGoogleSheets();
+    }, 2000);
+    
+    return () => clearTimeout(timer);
+  }, []);
+
   const handleGenerarQR = async (persona, empadronado) => {
     try {
       setGenerandoQR(true);
@@ -70,7 +72,6 @@ function App() {
     const exito = await agregarPersona(persona);
     if (exito) {
       setMostrarFormulario(false);
-      // Recargar para obtener estatus mensuales
       await cargarPersonas();
     }
   };
@@ -86,19 +87,16 @@ function App() {
     }
   };
 
-  // ✅ Abrir modal de detalle mensual
   const handleVerDetalle = (persona) => {
     setPersonaParaModal(persona);
     setMostrarModalMes(true);
   };
 
-  // ✅ Abrir modal de edición
   const handleEditar = (persona) => {
     setPersonaParaModal(persona);
     setMostrarModalEditar(true);
   };
 
-  // ✅ Guardar edición
   const handleGuardarEdicion = async (personaId, datosEditados) => {
     try {
       await supabaseService.actualizarPersona(personaId, datosEditados);
@@ -125,12 +123,10 @@ function App() {
       p.dni.includes(busqueda)
   );
 
-  // Mostrar escáner
   if (mostrarEscaner) {
     return <QRScannerApp onVolver={() => setMostrarEscaner(false)} />;
   }
 
-  // Pantalla principal
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4 md:p-6 overflow-x-hidden">
       <div className="max-w-7xl mx-auto">
@@ -301,7 +297,7 @@ function App() {
         </div>
       </div>
 
-      {/* ✅ Modal de estatus mensual */}
+      {/* Modales */}
       {mostrarModalMes && personaParaModal && (
         <MonthStatusModal
           persona={personaParaModal}
@@ -313,7 +309,6 @@ function App() {
         />
       )}
 
-      {/* ✅ Modal de edición */}
       {mostrarModalEditar && personaParaModal && (
         <EditPersonaModal
           persona={personaParaModal}
