@@ -12,9 +12,14 @@ class GoogleSheetsSync {
 
   // Inicializar Google API
   initialize() {
-    return new Promise((resolve, reject) => {
-      if (!GOOGLE_CONFIG.clientId || !GOOGLE_CONFIG.apiKey) {
-        console.warn('⚠️ Credenciales de Google Sheets no configuradas');
+    return new Promise((resolve) => {
+      // ✅ Validar credenciales
+      if (!GOOGLE_CONFIG.clientId || !GOOGLE_CONFIG.apiKey || !GOOGLE_CONFIG.spreadsheetId) {
+        console.warn('⚠️ Credenciales de Google Sheets no configuradas completamente');
+        console.warn('Verifica que tengas en .env:');
+        console.warn('- REACT_APP_GOOGLE_CLIENT_ID');
+        console.warn('- REACT_APP_GOOGLE_API_KEY');
+        console.warn('- REACT_APP_GOOGLE_SPREADSHEET_ID');
         resolve(false);
         return;
       }
@@ -56,140 +61,216 @@ class GoogleSheetsSync {
       return;
     }
 
-    this.tokenClient = window.google.accounts.oauth2.initTokenClient({
-      client_id: GOOGLE_CONFIG.clientId,
-      scope: GOOGLE_CONFIG.scope,
-      callback: (response) => {
-        if (response.error) {
-          console.error('❌ Error en autenticación:', response);
-          return;
-        }
-        this.accessToken = response.access_token;
-        this.isSignedIn = true;
-        console.log('✅ Autenticado con Google');
-      },
-    });
+    try {
+      this.tokenClient = window.google.accounts.oauth2.initTokenClient({
+        client_id: GOOGLE_CONFIG.clientId,
+        scope: GOOGLE_CONFIG.scope,
+        callback: (response) => {
+          if (response.error) {
+            console.error('❌ Error en autenticación:', response);
+            return;
+          }
+          this.accessToken = response.access_token;
+          this.isSignedIn = true;
+          
+          // ✅ Configurar token en gapi inmediatamente
+          if (window.gapi?.client) {
+            window.gapi.client.setToken({
+              access_token: this.accessToken,
+            });
+          }
+          
+          console.log('✅ Autenticado con Google');
+        },
+      });
+      
+      console.log('✅ Token client configurado');
+    } catch (error) {
+      console.error('❌ Error configurando token client:', error);
+    }
   }
 
   // Iniciar sesión
   signIn() {
     return new Promise((resolve, reject) => {
-      if (!this.isInitialized || !this.tokenClient) {
+      if (!this.isInitialized) {
         reject(new Error('Google Sheets no inicializado'));
         return;
       }
+
+      if (!this.tokenClient) {
+        reject(new Error('Token client no disponible'));
+        return;
+      }
+
+      console.log('🔐 Solicitando autenticación...');
 
       const originalCallback = this.tokenClient.callback;
       
       this.tokenClient.callback = (response) => {
         if (response.error) {
-          reject(response);
+          console.error('❌ Error de autenticación:', response);
+          this.tokenClient.callback = originalCallback;
+          reject(new Error(response.error));
           return;
         }
 
         this.accessToken = response.access_token;
         this.isSignedIn = true;
         
-        window.gapi.client.setToken({
-          access_token: this.accessToken,
-        });
+        // ✅ Configurar token
+        if (window.gapi?.client) {
+          window.gapi.client.setToken({
+            access_token: this.accessToken,
+          });
+          console.log('✅ Token configurado en gapi.client');
+        }
 
+        console.log('✅ Autenticación exitosa');
         this.tokenClient.callback = originalCallback;
         resolve(true);
       };
 
-      this.tokenClient.requestAccessToken({ prompt: 'select_account' });
+      // ✅ Solicitar token
+      try {
+        this.tokenClient.requestAccessToken({ 
+          prompt: 'select_account' 
+        });
+      } catch (error) {
+        console.error('❌ Error solicitando token:', error);
+        this.tokenClient.callback = originalCallback;
+        reject(error);
+      }
     });
   }
 
   // Cerrar sesión
   signOut() {
-    if (this.accessToken) {
-      window.google.accounts.oauth2.revoke(this.accessToken, () => {
-        console.log('✅ Token de Google revocado');
-      });
+    if (this.accessToken && window.google?.accounts?.oauth2) {
+      try {
+        window.google.accounts.oauth2.revoke(this.accessToken, () => {
+          console.log('✅ Token de Google revocado');
+        });
+      } catch (error) {
+        console.error('Error revocando token:', error);
+      }
     }
 
     this.accessToken = null;
     this.isSignedIn = false;
+    
     if (window.gapi?.client) {
       window.gapi.client.setToken(null);
     }
+    
+    console.log('✅ Sesión cerrada');
   }
 
   // Verificar estado de autenticación
   isAuthenticated() {
-    return this.isSignedIn && this.accessToken !== null;
+    const authenticated = this.isSignedIn && this.accessToken !== null;
+    console.log('🔍 Estado autenticación:', authenticated);
+    return authenticated;
   }
 
   // Sincronizar datos de Supabase a Google Sheets
   async sincronizarAGoogleSheets(personas) {
+    console.log('🔄 Iniciando sincronización...');
+    
+    // ✅ Validaciones
     if (!this.isAuthenticated()) {
-      throw new Error('No autenticado con Google');
+      const error = 'No autenticado con Google Sheets';
+      console.error('❌', error);
+      throw new Error(error);
     }
 
     if (!GOOGLE_CONFIG.spreadsheetId) {
-      throw new Error('SPREADSHEET_ID no configurado');
+      const error = 'SPREADSHEET_ID no configurado en .env';
+      console.error('❌', error);
+      throw new Error(error);
+    }
+
+    if (!personas || personas.length === 0) {
+      console.warn('⚠️ No hay personas para sincronizar');
+      return true;
     }
 
     try {
-      // Limpiar hoja (mantener headers)
-      await this.limpiarHoja();
+      console.log(`📊 Sincronizando ${personas.length} personas...`);
+      
+      // 1. Crear/verificar headers
+      await this.verificarYCrearHeaders();
 
-      // Preparar datos
+      // 2. Preparar datos
       const valores = personas.map(p => [
-        p.nombre,
-        p.dni,
+        p.nombre || '',
+        p.dni || '',
         p.email || '',
-        p.telefono,
+        p.telefono || '',
         p.empadronado ? 'SÍ' : 'NO',
         parseFloat(p.monto || 0).toFixed(2),
         p.foto_url || '',
-        new Date(p.created_at).toLocaleDateString('es-PE')
+        p.created_at ? new Date(p.created_at).toLocaleDateString('es-PE') : ''
       ]);
 
-      // Escribir datos
-      if (valores.length > 0) {
-        await window.gapi.client.sheets.spreadsheets.values.update({
-          spreadsheetId: GOOGLE_CONFIG.spreadsheetId,
-          range: `${SHEET_NAME}!A2:H${valores.length + 1}`,
-          valueInputOption: 'USER_ENTERED',
-          resource: { values: valores },
-        });
-      }
+      console.log('📝 Datos preparados:', valores.length, 'filas');
 
-      console.log('✅ Datos sincronizados a Google Sheets');
-      return true;
-    } catch (error) {
-      console.error('❌ Error sincronizando con Google Sheets:', error);
-      throw error;
-    }
-  }
-
-  // Limpiar hoja (mantener headers)
-  async limpiarHoja() {
-    try {
-      // Primero verificar si existe el header
-      const response = await window.gapi.client.sheets.spreadsheets.values.get({
-        spreadsheetId: GOOGLE_CONFIG.spreadsheetId,
-        range: `${SHEET_NAME}!A1:H1`,
-      });
-
-      // Si no existe header, crearlo
-      if (!response.result.values || response.result.values.length === 0) {
-        await this.crearHeaders();
-      }
-
-      // Limpiar datos (desde fila 2 en adelante)
+      // 3. Limpiar datos anteriores (mantener headers)
       await window.gapi.client.sheets.spreadsheets.values.clear({
         spreadsheetId: GOOGLE_CONFIG.spreadsheetId,
         range: `${SHEET_NAME}!A2:H1000`,
       });
 
-      console.log('✅ Hoja limpiada');
+      console.log('🧹 Datos anteriores limpiados');
+
+      // 4. Escribir nuevos datos
+      const response = await window.gapi.client.sheets.spreadsheets.values.update({
+        spreadsheetId: GOOGLE_CONFIG.spreadsheetId,
+        range: `${SHEET_NAME}!A2:H${valores.length + 1}`,
+        valueInputOption: 'USER_ENTERED',
+        resource: { values: valores },
+      });
+
+      console.log('✅ Datos escritos:', response.result.updatedRows, 'filas');
+      console.log('✅ Sincronización completada exitosamente');
+      
+      return true;
     } catch (error) {
-      console.error('❌ Error limpiando hoja:', error);
-      throw error;
+      console.error('❌ Error en sincronización:', error);
+      console.error('Detalles del error:', {
+        message: error.message,
+        result: error.result,
+        body: error.body
+      });
+      throw new Error(`Error sincronizando: ${error.message}`);
+    }
+  }
+
+  // Verificar y crear headers si no existen
+  async verificarYCrearHeaders() {
+    try {
+      // Verificar si existen headers
+      const response = await window.gapi.client.sheets.spreadsheets.values.get({
+        spreadsheetId: GOOGLE_CONFIG.spreadsheetId,
+        range: `${SHEET_NAME}!A1:H1`,
+      });
+
+      const hasHeaders = response.result.values && response.result.values.length > 0;
+
+      if (!hasHeaders) {
+        console.log('📋 Creando headers...');
+        await this.crearHeaders();
+      } else {
+        console.log('✅ Headers ya existen');
+      }
+    } catch (error) {
+      console.error('❌ Error verificando headers:', error);
+      // Intentar crear headers de todas formas
+      try {
+        await this.crearHeaders();
+      } catch (createError) {
+        console.error('❌ No se pudieron crear headers:', createError);
+      }
     }
   }
 
@@ -207,7 +288,7 @@ class GoogleSheetsSync {
         resource: { values: headers },
       });
 
-      // Formatear headers (negrita)
+      // Formatear headers (negrita y fondo gris)
       await window.gapi.client.sheets.spreadsheets.batchUpdate({
         spreadsheetId: GOOGLE_CONFIG.spreadsheetId,
         resource: {
@@ -221,7 +302,7 @@ class GoogleSheetsSync {
               cell: {
                 userEnteredFormat: {
                   textFormat: { bold: true },
-                  backgroundColor: { red: 0.8, green: 0.8, blue: 0.8 }
+                  backgroundColor: { red: 0.9, green: 0.9, blue: 0.9 }
                 }
               },
               fields: 'userEnteredFormat(textFormat,backgroundColor)'
@@ -230,39 +311,9 @@ class GoogleSheetsSync {
         }
       });
 
-      console.log('✅ Headers creados en Google Sheets');
+      console.log('✅ Headers creados y formateados');
     } catch (error) {
       console.error('❌ Error creando headers:', error);
-    }
-  }
-
-  // Leer datos de Google Sheets (opcional)
-  async leerDatosDeGoogleSheets() {
-    if (!this.isAuthenticated()) {
-      throw new Error('No autenticado con Google');
-    }
-
-    try {
-      const response = await window.gapi.client.sheets.spreadsheets.values.get({
-        spreadsheetId: GOOGLE_CONFIG.spreadsheetId,
-        range: `${SHEET_NAME}!A2:H`,
-      });
-
-      const rows = response.result.values || [];
-      
-      return rows.map((row, index) => ({
-        id: index + 1,
-        nombre: row[0] || '',
-        dni: row[1] || '',
-        email: row[2] || '',
-        telefono: row[3] || '',
-        empadronado: row[4] === 'SÍ',
-        monto: parseFloat(row[5]) || 0,
-        foto_url: row[6] || '',
-        created_at: row[7] || '',
-      }));
-    } catch (error) {
-      console.error('❌ Error leyendo Google Sheets:', error);
       throw error;
     }
   }

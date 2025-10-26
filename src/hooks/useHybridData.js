@@ -56,23 +56,33 @@ export const useHybridData = () => {
   }, []);
 
   // Sincronizar con Google Sheets
-  const sincronizarConGoogleSheets = useCallback(async (personasData) => {
-    if (!googleSheetsAuth) {
-      throw new Error('No autenticado con Google Sheets');
-    }
 
-    try {
-      setSincronizando(true);
-      const datosParaSincronizar = personasData || personas;
-      await googleSheetsSync.sincronizarAGoogleSheets(datosParaSincronizar);
-      return true;
-    } catch (err) {
-      console.error('Error sincronizando:', err);
-      throw err;
-    } finally {
-      setSincronizando(false);
-    }
-  }, [personas, googleSheetsAuth]);
+const sincronizarConGoogleSheets = useCallback(async (personasData) => {
+  console.log('🔄 Iniciando sincronización desde hook...');
+  
+  if (!googleSheetsAuth) {
+    const error = 'No autenticado con Google Sheets';
+    console.error('❌', error);
+    throw new Error(error);
+  }
+
+  try {
+    setSincronizando(true);
+    const datosParaSincronizar = personasData || personas;
+    
+    console.log('📊 Datos a sincronizar:', datosParaSincronizar.length);
+    
+    await googleSheetsSync.sincronizarAGoogleSheets(datosParaSincronizar);
+    
+    console.log('✅ Sincronización completada');
+    return true;
+  } catch (err) {
+    console.error('❌ Error en sincronización:', err);
+    throw new Error(`Error al sincronizar: ${err.message}`);
+  } finally {
+    setSincronizando(false);
+  }
+}, [personas, googleSheetsAuth]);
 
   // Agregar persona
   const agregarPersona = useCallback(async (persona) => {
