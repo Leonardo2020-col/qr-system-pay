@@ -1,7 +1,7 @@
 // src/components/PersonaTableWithMonths.jsx
 
 import React, { useState, useEffect } from 'react';
-import { Check, X, Eye, Edit, Trash2, RefreshCw } from 'lucide-react';
+import { Check, X, Eye, Edit, Trash2, RefreshCw, QrCode } from 'lucide-react';
 import supabaseService from '../services/supabaseService';
 
 const MESES = [
@@ -24,11 +24,12 @@ const PersonaTableWithMonths = ({
   onVerDetalle, 
   onEditar, 
   onEliminar,
+  onGenerarQR, // ✅ AGREGADO
   anioSeleccionado = new Date().getFullYear()
 }) => {
   const [estatusPorPersona, setEstatusPorPersona] = useState({});
   const [cargando, setCargando] = useState(true);
-  const [actualizando, setActualizando] = useState(null); // {personaId, mes}
+  const [actualizando, setActualizando] = useState(null);
 
   useEffect(() => {
     cargarEstatus();
@@ -39,7 +40,6 @@ const PersonaTableWithMonths = ({
       setCargando(true);
       const todosEstatus = await supabaseService.obtenerTodosEstatusMensuales(anioSeleccionado);
       
-      // Organizar por persona
       const estatusPorId = {};
       todosEstatus.forEach(estatus => {
         if (!estatusPorId[estatus.persona_id]) {
@@ -62,7 +62,6 @@ const PersonaTableWithMonths = ({
       
       await supabaseService.toggleEstatusMensual(personaId, anioSeleccionado, mes);
       
-      // Actualizar estado local
       setEstatusPorPersona(prev => ({
         ...prev,
         [personaId]: {
@@ -112,7 +111,7 @@ const PersonaTableWithMonths = ({
                 {mes.nombre}
               </th>
             ))}
-            <th className="px-4 py-3 text-center text-sm font-semibold min-w-[150px]">
+            <th className="px-4 py-3 text-center text-sm font-semibold min-w-[200px]">
               Acciones
             </th>
           </tr>
@@ -178,7 +177,17 @@ const PersonaTableWithMonths = ({
 
               {/* Acciones */}
               <td className="px-4 py-3">
-                <div className="flex gap-2 justify-center">
+                <div className="flex gap-2 justify-center flex-wrap">
+                  {/* ✅ Botón QR */}
+                  <button
+                    onClick={() => onGenerarQR(persona, persona.empadronado)}
+                    className="flex items-center gap-1 bg-purple-100 text-purple-700 px-3 py-2 rounded-lg hover:bg-purple-200 transition text-sm font-medium"
+                    title="Generar QR"
+                  >
+                    <QrCode size={16} />
+                    QR
+                  </button>
+                  
                   <button
                     onClick={() => onVerDetalle(persona)}
                     className="flex items-center gap-1 bg-blue-100 text-blue-700 px-3 py-2 rounded-lg hover:bg-blue-200 transition text-sm font-medium"
@@ -187,6 +196,7 @@ const PersonaTableWithMonths = ({
                     <Eye size={16} />
                     Ver
                   </button>
+                  
                   <button
                     onClick={() => onEditar(persona)}
                     className="flex items-center gap-1 bg-indigo-100 text-indigo-700 px-3 py-2 rounded-lg hover:bg-indigo-200 transition text-sm font-medium"
@@ -195,6 +205,7 @@ const PersonaTableWithMonths = ({
                     <Edit size={16} />
                     Editar
                   </button>
+                  
                   <button
                     onClick={() => onEliminar(persona.id)}
                     className="flex items-center gap-1 bg-red-100 text-red-700 px-3 py-2 rounded-lg hover:bg-red-200 transition text-sm font-medium"

@@ -263,6 +263,7 @@ function App() {
                     onVerDetalle={handleVerDetalle}
                     onEditar={handleEditar}
                     onEliminar={handleEliminarPersona}
+                    onGenerarQR={handleGenerarQR}
                     anioSeleccionado={anioSeleccionado}
                   />
                 </div>
