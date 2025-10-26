@@ -3,7 +3,10 @@
 import { supabase } from '../config/supabaseConfig';
 
 class SupabaseService {
-  // Obtener todas las personas
+  // ==========================================
+  // MÉTODOS DE PERSONAS
+  // ==========================================
+  
   async obtenerPersonas() {
     try {
       const { data, error } = await supabase
@@ -20,12 +23,10 @@ class SupabaseService {
     }
   }
 
-  // Agregar persona
   async agregarPersona(persona) {
     try {
       let fotoUrl = null;
 
-      // Si hay foto, subirla primero
       if (persona.foto && persona.foto.startsWith('data:image')) {
         fotoUrl = await this.subirFoto(persona.foto, persona.dni);
       }
@@ -46,6 +47,12 @@ class SupabaseService {
         .select();
 
       if (error) throw error;
+      
+      // ✅ Crear registros de estatus mensuales para el año actual
+      if (data && data[0]) {
+        await this.inicializarEstatusMensuales(data[0].id);
+      }
+      
       console.log('✅ Persona agregada:', data[0]);
       return data[0];
     } catch (error) {
@@ -54,12 +61,10 @@ class SupabaseService {
     }
   }
 
-  // Actualizar persona
   async actualizarPersona(id, persona) {
     try {
       let fotoUrl = persona.foto_url;
 
-      // Si hay nueva foto, subirla
       if (persona.foto && persona.foto.startsWith('data:image')) {
         fotoUrl = await this.subirFoto(persona.foto, persona.dni);
       }
@@ -86,10 +91,8 @@ class SupabaseService {
     }
   }
 
-  // Eliminar persona
   async eliminarPersona(id) {
     try {
-      // Opcional: eliminar foto asociada
       const { data: persona } = await supabase
         .from('personas')
         .select('foto_url')
@@ -114,7 +117,6 @@ class SupabaseService {
     }
   }
 
-  // ✅ Buscar persona por DNI (CORREGIDO)
   async buscarPorDNI(dni) {
     try {
       console.log('🔍 Buscando persona con DNI:', dni);
@@ -123,14 +125,12 @@ class SupabaseService {
         .from('personas')
         .select('*')
         .eq('dni', dni);
-        // ❌ NO usar .single() porque da error si no hay resultados
 
       if (error) {
         console.error('❌ Error en query:', error);
         throw error;
       }
       
-      // ✅ Verificar si hay resultados
       if (data && data.length > 0) {
         console.log('✅ Persona encontrada:', data[0]);
         return data[0];
@@ -144,10 +144,177 @@ class SupabaseService {
     }
   }
 
-  // Subir foto a Supabase Storage
+  // ==========================================
+  // MÉTODOS DE ESTATUS MENSUALES
+  // ==========================================
+
+  // Inicializar estatus mensuales para una persona (todos en false/X)
+  async inicializarEstatusMensuales(personaId, anio = new Date().getFullYear()) {
+    try {
+      const estatusData = [];
+      for (let mes = 1; mes <= 12; mes++) {
+        estatusData.push({
+          persona_id: personaId,
+          anio: anio,
+          mes: mes,
+          estatus: false
+        });
+      }
+
+      const { error } = await supabase
+        .from('estatus_mensuales')
+        .insert(estatusData);
+
+      if (error && error.code !== '23505') { // Ignorar error de duplicado
+        throw error;
+      }
+
+      console.log('✅ Estatus mensuales inicializados para persona:', personaId);
+      return true;
+    } catch (error) {
+      console.error('❌ Error inicializando estatus:', error);
+      return false;
+    }
+  }
+
+  // Obtener estatus mensuales de una persona para un año
+  async obtenerEstatusMensuales(personaId, anio = new Date().getFullYear()) {
+    try {
+      const { data, error } = await supabase
+        .from('estatus_mensuales')
+        .select('*')
+        .eq('persona_id', personaId)
+        .eq('anio', anio)
+        .order('mes', { ascending: true });
+
+      if (error) throw error;
+
+      // Si no hay datos, inicializar
+      if (!data || data.length === 0) {
+        await this.inicializarEstatusMensuales(personaId, anio);
+        return await this.obtenerEstatusMensuales(personaId, anio);
+      }
+
+      console.log('✅ Estatus obtenidos:', data.length);
+      return data;
+    } catch (error) {
+      console.error('❌ Error obteniendo estatus:', error);
+      throw error;
+    }
+  }
+
+  // Obtener estatus de todas las personas para un año
+  async obtenerTodosEstatusMensuales(anio = new Date().getFullYear()) {
+    try {
+      const { data, error } = await supabase
+        .from('estatus_mensuales')
+        .select('*')
+        .eq('anio', anio)
+        .order('persona_id', { ascending: true })
+        .order('mes', { ascending: true });
+
+      if (error) throw error;
+      
+      console.log('✅ Todos los estatus obtenidos');
+      return data;
+    } catch (error) {
+      console.error('❌ Error obteniendo todos los estatus:', error);
+      throw error;
+    }
+  }
+
+  // Actualizar estatus de un mes específico
+  async actualizarEstatusMensual(personaId, anio, mes, nuevoEstatus, observaciones = '') {
+    try {
+      const { data, error } = await supabase
+        .from('estatus_mensuales')
+        .update({
+          estatus: nuevoEstatus,
+          observaciones: observaciones
+        })
+        .eq('persona_id', personaId)
+        .eq('anio', anio)
+        .eq('mes', mes)
+        .select();
+
+      if (error) throw error;
+
+      console.log('✅ Estatus actualizado:', data[0]);
+      return data[0];
+    } catch (error) {
+      console.error('❌ Error actualizando estatus:', error);
+      throw error;
+    }
+  }
+
+  // Alternar estatus (true ↔ false)
+  async toggleEstatusMensual(personaId, anio, mes) {
+    try {
+      // Primero obtener el estatus actual
+      const { data: estatusActual, error: errorGet } = await supabase
+        .from('estatus_mensuales')
+        .select('estatus')
+        .eq('persona_id', personaId)
+        .eq('anio', anio)
+        .eq('mes', mes)
+        .single();
+
+      if (errorGet) throw errorGet;
+
+      // Alternar el estatus
+      const nuevoEstatus = !estatusActual.estatus;
+
+      return await this.actualizarEstatusMensual(personaId, anio, mes, nuevoEstatus);
+    } catch (error) {
+      console.error('❌ Error alternando estatus:', error);
+      throw error;
+    }
+  }
+
+  // Obtener estatus de un mes específico
+  async obtenerEstatusMes(personaId, anio, mes) {
+    try {
+      const { data, error } = await supabase
+        .from('estatus_mensuales')
+        .select('*')
+        .eq('persona_id', personaId)
+        .eq('anio', anio)
+        .eq('mes', mes)
+        .single();
+
+      if (error) {
+        // Si no existe, crearlo
+        if (error.code === 'PGRST116') {
+          const { data: nuevo, error: errorInsert } = await supabase
+            .from('estatus_mensuales')
+            .insert({
+              persona_id: personaId,
+              anio: anio,
+              mes: mes,
+              estatus: false
+            })
+            .select()
+            .single();
+
+          if (errorInsert) throw errorInsert;
+          return nuevo;
+        }
+        throw error;
+      }
+
+      return data;
+    } catch (error) {
+      console.error('❌ Error obteniendo estatus del mes:', error);
+      throw error;
+    }
+  }
+
+  // ==========================================
+  // MÉTODOS DE STORAGE (Fotos)
+  // ==========================================
+
   async subirFoto(base64, dni) {
     try {
-      // Convertir Base64 a Blob
       const base64Data = base64.split(',')[1];
       const mimeType = base64.split(',')[0].match(/:(.*?);/)[1];
       const blob = this.base64ToBlob(base64Data, mimeType);
@@ -163,7 +330,6 @@ class SupabaseService {
 
       if (error) throw error;
 
-      // Obtener URL pública
       const { data: publicData } = supabase.storage
         .from('fotos-personas')
         .getPublicUrl(fileName);
@@ -176,7 +342,6 @@ class SupabaseService {
     }
   }
 
-  // Eliminar foto de Supabase Storage
   async eliminarFoto(fotoUrl) {
     try {
       const fileName = fotoUrl.split('/').pop();
@@ -192,7 +357,6 @@ class SupabaseService {
     }
   }
 
-  // Convertir Base64 a Blob
   base64ToBlob(base64, mimeType) {
     const byteCharacters = atob(base64);
     const byteArrays = [];

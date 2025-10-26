@@ -1,4 +1,3 @@
-// src/components/QRDisplay.jsx
 
 import React from 'react';
 import { CheckCircle, XCircle, QrCode, Download } from 'lucide-react';

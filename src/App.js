@@ -1,14 +1,17 @@
 // src/App.js
 
 import React, { useState } from 'react';
-import { UserPlus, RefreshCw, AlertCircle, QrCode, Cloud, LogIn, LogOut } from 'lucide-react';
+import { UserPlus, RefreshCw, AlertCircle, QrCode, Cloud, LogIn, LogOut, Calendar } from 'lucide-react';
 import { useHybridData } from './hooks/useHybridData';
 import { generarQRCode } from './services/qrService';
-import PersonasList from './components/PersonasList';
+import PersonaTableWithMonths from './components/PersonaTableWithMonths';
 import PersonaForm from './components/PersonaForm';
 import QRDisplay from './components/QRDisplay';
 import SearchBar from './components/SearchBar';
 import QRScannerApp from './components/QRScannerApp';
+import MonthStatusModal from './components/MonthStatusModal';
+import EditPersonaModal from './components/EditPersonaModal';
+import supabaseService from './services/supabaseService';
 
 function App() {
   const { 
@@ -33,6 +36,12 @@ function App() {
   const [estadoPago, setEstadoPago] = useState(false);
   const [mostrarEscaner, setMostrarEscaner] = useState(false);
   const [generandoQR, setGenerandoQR] = useState(false);
+  
+  // ✅ Nuevos estados para modales
+  const [mostrarModalMes, setMostrarModalMes] = useState(false);
+  const [mostrarModalEditar, setMostrarModalEditar] = useState(false);
+  const [personaParaModal, setPersonaParaModal] = useState(null);
+  const [anioSeleccionado, setAnioSeleccionado] = useState(new Date().getFullYear());
 
   const handleGenerarQR = async (persona, empadronado) => {
     try {
@@ -53,17 +62,43 @@ function App() {
     const exito = await agregarPersona(persona);
     if (exito) {
       setMostrarFormulario(false);
+      // Recargar para obtener estatus mensuales
+      await cargarPersonas();
     }
   };
 
   const handleEliminarPersona = async (id) => {
-    if (window.confirm('¿Estás seguro de eliminar esta persona?')) {
+    if (window.confirm('¿Estás seguro de eliminar esta persona? Esto también eliminará todos sus registros mensuales.')) {
       await eliminarPersona(id);
       
       if (personaSeleccionada && personaSeleccionada.id === id) {
         setQrUrl('');
         setPersonaSeleccionada(null);
       }
+    }
+  };
+
+  // ✅ Abrir modal de detalle mensual
+  const handleVerDetalle = (persona) => {
+    setPersonaParaModal(persona);
+    setMostrarModalMes(true);
+  };
+
+  // ✅ Abrir modal de edición
+  const handleEditar = (persona) => {
+    setPersonaParaModal(persona);
+    setMostrarModalEditar(true);
+  };
+
+  // ✅ Guardar edición
+  const handleGuardarEdicion = async (personaId, datosEditados) => {
+    try {
+      await supabaseService.actualizarPersona(personaId, datosEditados);
+      await cargarPersonas();
+      alert('✅ Persona actualizada correctamente');
+    } catch (error) {
+      console.error('Error actualizando persona:', error);
+      throw error;
     }
   };
 
@@ -99,8 +134,24 @@ function App() {
                 Sistema de Gestión QR
               </h1>
               <p className="text-xs md:text-sm lg:text-base text-gray-600">
-                Control de empadronamiento y generación de códigos QR
+                Control de estatus mensual y generación de códigos QR
               </p>
+            </div>
+            
+            {/* Selector de año */}
+            <div className="flex items-center gap-3 bg-gradient-to-r from-indigo-50 to-blue-50 p-3 rounded-lg border border-indigo-200">
+              <Calendar size={20} className="text-indigo-600" />
+              <label className="text-sm font-medium text-gray-700">Año:</label>
+              <select
+                value={anioSeleccionado}
+                onChange={(e) => setAnioSeleccionado(parseInt(e.target.value))}
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
+              >
+                <option value={2024}>2024</option>
+                <option value={2025}>2025</option>
+                <option value={2026}>2026</option>
+                <option value={2027}>2027</option>
+              </select>
             </div>
             
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2 w-full">
@@ -171,7 +222,7 @@ function App() {
 
         {/* Contenido principal */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
-          {/* Lista de personas */}
+          {/* Tabla de personas con estatus mensuales */}
           <div className="lg:col-span-2 bg-white rounded-2xl shadow-xl p-4 md:p-6 overflow-hidden">
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4 md:mb-6">
               <h2 className="text-lg md:text-xl lg:text-2xl font-bold text-gray-800">
@@ -207,10 +258,12 @@ function App() {
             ) : (
               <div className="overflow-x-auto -mx-4 md:mx-0">
                 <div className="inline-block min-w-full align-middle px-4 md:px-0">
-                  <PersonasList
+                  <PersonaTableWithMonths
                     personas={personasFiltradas}
-                    onGenerarQR={handleGenerarQR}
+                    onVerDetalle={handleVerDetalle}
+                    onEditar={handleEditar}
                     onEliminar={handleEliminarPersona}
+                    anioSeleccionado={anioSeleccionado}
                   />
                 </div>
               </div>
@@ -238,6 +291,30 @@ function App() {
           </div>
         </div>
       </div>
+
+      {/* ✅ Modal de estatus mensual */}
+      {mostrarModalMes && personaParaModal && (
+        <MonthStatusModal
+          persona={personaParaModal}
+          onCerrar={() => {
+            setMostrarModalMes(false);
+            setPersonaParaModal(null);
+          }}
+          anioInicial={anioSeleccionado}
+        />
+      )}
+
+      {/* ✅ Modal de edición */}
+      {mostrarModalEditar && personaParaModal && (
+        <EditPersonaModal
+          persona={personaParaModal}
+          onGuardar={handleGuardarEdicion}
+          onCerrar={() => {
+            setMostrarModalEditar(false);
+            setPersonaParaModal(null);
+          }}
+        />
+      )}
     </div>
   );
 }
