@@ -12,6 +12,14 @@ import QRScannerApp from './components/QRScannerApp';
 import MonthStatusModal from './components/MonthStatusModal';
 import EditPersonaModal from './components/EditPersonaModal';
 import supabaseService from './services/supabaseService';
+import { diagnosticarGoogleSheets } from './utils/googleDiagnostic';
+
+React.useEffect(() => {
+  // Ejecutar diagnóstico después de 2 segundos (para que carguen los scripts)
+  setTimeout(() => {
+    diagnosticarGoogleSheets();
+  }, 2000);
+}, []);
 
 function App() {
   const { 
