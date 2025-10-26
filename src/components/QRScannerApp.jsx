@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
-import { CheckCircle, XCircle, ArrowLeft, Camera, Home, Video, User, Upload, Calendar } from 'lucide-react'; // ✅ Agregado Calendar
+import { CheckCircle, XCircle, ArrowLeft, Camera, Home, Video, User, Upload, Calendar } from 'lucide-react';
 import supabaseService from '../services/supabaseService';
 
 // ✅ Componente auxiliar para manejar carga de imágenes
@@ -112,6 +112,217 @@ const FotoPersona = ({ foto, nombre }) => {
   );
 };
 
+// ✅ NUEVO: Componente separado para Vista de Información
+const VistaInformacion = ({ persona, onReset, onVolver }) => {
+  const [mesSeleccionado, setMesSeleccionado] = useState(new Date().getMonth() + 1);
+  const [anioSeleccionado, setAnioSeleccionado] = useState(new Date().getFullYear());
+  const [estatusMes, setEstatusMes] = useState(null);
+  const [cargandoEstatus, setCargandoEstatus] = useState(true);
+
+  const MESES_COMPLETOS = [
+    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+  ];
+
+  const empadronado = persona.empadronado || false;
+
+  useEffect(() => {
+    const cargarEstatusMes = async () => {
+      try {
+        setCargandoEstatus(true);
+        
+        // Buscar ID por DNI si no existe
+        let personaId = persona.id;
+        if (!personaId) {
+          const personaCompleta = await supabaseService.buscarPorDNI(persona.dni);
+          personaId = personaCompleta?.id;
+        }
+
+        if (personaId) {
+          const estatus = await supabaseService.obtenerEstatusMes(
+            personaId,
+            anioSeleccionado,
+            mesSeleccionado
+          );
+          setEstatusMes(estatus);
+        } else {
+          setEstatusMes({ estatus: false });
+        }
+      } catch (error) {
+        console.error('Error cargando estatus:', error);
+        setEstatusMes({ estatus: false });
+      } finally {
+        setCargandoEstatus(false);
+      }
+    };
+
+    cargarEstatusMes();
+  }, [mesSeleccionado, anioSeleccionado, persona]);
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+      <div className="max-w-md mx-auto">
+        <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
+          <div className="bg-gradient-to-r from-indigo-600 to-indigo-700 p-6 text-white">
+            <div className="flex gap-2 mb-4">
+              <button
+                onClick={onReset}
+                className="flex items-center gap-2 hover:opacity-80 transition bg-white/20 px-3 py-2 rounded-lg text-sm"
+              >
+                <ArrowLeft size={18} />
+                <span className="hidden sm:inline">Escanear otro</span>
+              </button>
+              {onVolver && (
+                <button
+                  onClick={onVolver}
+                  className="flex items-center gap-2 hover:opacity-80 transition bg-white/20 px-3 py-2 rounded-lg text-sm"
+                >
+                  <Home size={18} />
+                  <span className="hidden sm:inline">Inicio</span>
+                </button>
+              )}
+            </div>
+            <h1 className="text-xl md:text-2xl font-bold">Información del Cliente</h1>
+          </div>
+
+          <div className="p-6 space-y-6">
+            <div className="text-center pb-4 border-b-2 border-gray-100">
+              <div className="mb-4 flex justify-center items-center">
+                <FotoPersona foto={persona.foto} nombre={persona.nombre} />
+              </div>
+              
+              <h2 className="text-2xl md:text-3xl font-bold text-gray-800 mb-2">
+                {persona.nombre}
+              </h2>
+              <p className="text-gray-500 font-medium">DNI: {persona.dni}</p>
+            </div>
+
+            <div className="space-y-3">
+              {persona.email && persona.email.trim() !== '' && (
+                <InfoRow label="Email" value={persona.email} />
+              )}
+              <InfoRow label="Teléfono" value={persona.telefono} />
+            </div>
+
+            {/* Selector de Mes y Año */}
+            <div className="bg-gradient-to-r from-indigo-50 to-blue-50 p-5 rounded-xl">
+              <h3 className="font-bold text-lg text-gray-800 mb-4 flex items-center gap-2">
+                <Calendar size={20} className="text-indigo-600" />
+                Estatus Mensual
+              </h3>
+              
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Mes
+                  </label>
+                  <select
+                    value={mesSeleccionado}
+                    onChange={(e) => setMesSeleccionado(parseInt(e.target.value))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white text-sm"
+                  >
+                    {MESES_COMPLETOS.map((mes, index) => (
+                      <option key={index} value={index + 1}>
+                        {mes}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Año
+                  </label>
+                  <select
+                    value={anioSeleccionado}
+                    onChange={(e) => setAnioSeleccionado(parseInt(e.target.value))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white text-sm"
+                  >
+                    {[2024, 2025, 2026, 2027].map(anio => (
+                      <option key={anio} value={anio}>{anio}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Mostrar estatus del mes seleccionado */}
+              {cargandoEstatus ? (
+                <div className="text-center py-4">
+                  <div className="animate-spin w-6 h-6 border-3 border-indigo-600 border-t-transparent rounded-full mx-auto"></div>
+                  <p className="text-xs text-gray-600 mt-2">Cargando...</p>
+                </div>
+              ) : (
+                <div className="bg-white rounded-lg p-4 border-2 border-gray-200">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-700 font-medium text-sm">
+                      Estatus de {MESES_COMPLETOS[mesSeleccionado - 1]}:
+                    </span>
+                    <span className={`text-2xl md:text-3xl font-bold ${
+                      estatusMes?.estatus ? 'text-green-600' : 'text-red-600'
+                    }`}>
+                      {estatusMes?.estatus ? '✓' : '✗'}
+                    </span>
+                  </div>
+                  <p className={`text-xs mt-2 font-medium ${
+                    estatusMes?.estatus ? 'text-green-700' : 'text-red-700'
+                  }`}>
+                    {estatusMes?.estatus ? 'Completado' : 'Pendiente'}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Estado de empadronamiento */}
+            <div className={`rounded-2xl p-6 md:p-8 text-center shadow-lg ${
+              empadronado
+                ? 'bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-400' 
+                : 'bg-gradient-to-br from-red-50 to-red-100 border-2 border-red-400'
+            }`}>
+              {empadronado ? (
+                <>
+                  <CheckCircle size={56} className="mx-auto text-green-600 mb-3 md:mb-4" />
+                  <h3 className="text-2xl md:text-3xl font-bold text-green-800 mb-2">
+                    ¡EMPADRONADO!
+                  </h3>
+                  <p className="text-green-700 font-medium text-base md:text-lg">
+                    Cliente en situación regular
+                  </p>
+                </>
+              ) : (
+                <>
+                  <XCircle size={56} className="mx-auto text-red-600 mb-3 md:mb-4" />
+                  <h3 className="text-2xl md:text-3xl font-bold text-red-800 mb-2">
+                    NO EMPADRONADO
+                  </h3>
+                  <p className="text-red-700 font-medium text-base md:text-lg">
+                    Requiere empadronamiento
+                  </p>
+                </>
+              )}
+            </div>
+
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <p className="text-xs text-blue-700">
+                <strong>Estado registrado:</strong> {persona.estado || 'Activo'}
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-gray-50 p-4 text-center border-t">
+            <p className="text-xs text-gray-500">
+              Escaneado: {new Date().toLocaleString('es-PE')}
+            </p>
+            {persona.fechaGeneracion && (
+              <p className="text-xs text-gray-400 mt-1">
+                QR generado: {new Date(persona.fechaGeneracion).toLocaleString('es-PE')}
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const QRScannerApp = ({ onVolver }) => {
   const [persona, setPersona] = useState(null);
   const [scanning, setScanning] = useState(false);
@@ -122,14 +333,11 @@ const QRScannerApp = ({ onVolver }) => {
   const [currentDNI, setCurrentDNI] = useState(null);
   const [camerasLoading, setCamerasLoading] = useState(true);
   const [cameraError, setCameraError] = useState(null);
-  
-  // ✅ NUEVO: Flag para evitar múltiples escaneos simultáneos
   const [processingQR, setProcessingQR] = useState(false);
   
   const scannerRef = useRef(null);
   const fileInputRef = useRef(null);
 
-  // Debug de estados
   useEffect(() => {
     console.log('📊 Estados:', {
       scanning,
@@ -140,7 +348,6 @@ const QRScannerApp = ({ onVolver }) => {
     });
   }, [scanning, scannerStarted, persona, currentDNI, processingQR]);
 
-  // ✅ Cargar cámaras al montar el componente
   useEffect(() => {
     const getCameras = async () => {
       try {
@@ -186,7 +393,6 @@ const QRScannerApp = ({ onVolver }) => {
     getCameras();
   }, []);
 
-  // Limpiar al desmontar
   useEffect(() => {
     return () => {
       if (scannerRef.current) {
@@ -203,10 +409,7 @@ const QRScannerApp = ({ onVolver }) => {
 
     console.log('🎬 Iniciando escaneo...');
     
-    // Cambiar estado para renderizar el elemento
     setScanning(true);
-    
-    // Esperar a que React renderice
     await new Promise(resolve => setTimeout(resolve, 300));
 
     try {
@@ -220,7 +423,6 @@ const QRScannerApp = ({ onVolver }) => {
 
       console.log('✅ Elemento encontrado');
 
-      // Limpiar escáner previo
       if (scannerRef.current) {
         try {
           await scannerRef.current.stop();
@@ -278,7 +480,6 @@ const QRScannerApp = ({ onVolver }) => {
   };
 
   const onScanSuccess = async (decodedText) => {
-    // ✅ CRÍTICO: Evitar procesamiento múltiple
     if (processingQR) {
       console.log('⚠️ Ya procesando QR, ignorando...');
       return;
@@ -298,7 +499,6 @@ const QRScannerApp = ({ onVolver }) => {
       
       console.log('📋 QR detectado - DNI:', personaData.dni);
       
-      // ✅ Detener escáner INMEDIATAMENTE
       if (scannerRef.current) {
         try {
           console.log('🛑 Deteniendo escáner...');
@@ -313,33 +513,37 @@ const QRScannerApp = ({ onVolver }) => {
       setScannerStarted(false);
       setScanning(false);
       
-      // Buscar foto en Supabase
       console.log('🔍 Buscando persona en Supabase...');
       try {
         const personaCompleta = await supabaseService.buscarPorDNI(personaData.dni);
         
-        if (personaCompleta?.foto_url && personaCompleta.foto_url.trim() !== '') {
-          let fotoUrl = personaCompleta.foto_url.trim();
-          if (fotoUrl.startsWith('http:')) {
-            fotoUrl = fotoUrl.replace('http:', 'https:');
+        if (personaCompleta) {
+          // Agregar el ID a los datos de la persona
+          personaData.id = personaCompleta.id;
+          
+          if (personaCompleta.foto_url && personaCompleta.foto_url.trim() !== '') {
+            let fotoUrl = personaCompleta.foto_url.trim();
+            if (fotoUrl.startsWith('http:')) {
+              fotoUrl = fotoUrl.replace('http:', 'https:');
+            }
+            personaData.foto = fotoUrl;
+            console.log('✅ Foto encontrada');
+          } else {
+            personaData.foto = null;
+            console.log('⚠️ Sin foto');
           }
-          personaData.foto = fotoUrl;
-          console.log('✅ Foto encontrada');
         } else {
           personaData.foto = null;
-          console.log('⚠️ Sin foto');
         }
       } catch (err) {
         console.error('❌ Error buscando foto:', err);
         personaData.foto = null;
       }
       
-      // Establecer datos
       console.log('💾 Guardando datos...');
       setCurrentDNI(personaData.dni);
       setPersona(personaData);
       
-      // Limpiar DOM del escáner
       setTimeout(() => {
         const el = document.getElementById('qr-reader');
         if (el) {
@@ -355,7 +559,6 @@ const QRScannerApp = ({ onVolver }) => {
       alert('Código QR inválido. Intenta de nuevo.');
       setProcessingQR(false);
     } finally {
-      // Liberar el flag después de un delay
       setTimeout(() => {
         setProcessingQR(false);
         console.log('🔓 Desbloqueando escaneos');
@@ -370,7 +573,6 @@ const QRScannerApp = ({ onVolver }) => {
   const handleReset = async () => {
     console.log('🔄 Reset completo iniciado');
     
-    // Detener escáner
     if (scannerRef.current) {
       try {
         await scannerRef.current.stop();
@@ -382,7 +584,6 @@ const QRScannerApp = ({ onVolver }) => {
       scannerRef.current = null;
     }
     
-    // Limpiar estados
     setPersona(null);
     setCurrentDNI(null);
     setScanning(false);
@@ -390,7 +591,6 @@ const QRScannerApp = ({ onVolver }) => {
     setProcessingImage(false);
     setProcessingQR(false);
     
-    // Limpiar DOM
     const el = document.getElementById('qr-reader');
     if (el) {
       el.innerHTML = '';
@@ -435,215 +635,15 @@ const QRScannerApp = ({ onVolver }) => {
   };
 
   // ========================================
-  // VISTA 1: Mostrar información de la persona
+  // VISTAS
   // ========================================
-  // ========================================
-// VISTA 1: Mostrar información de la persona
-// ========================================
-if (persona) {
-  const empadronado = persona.empadronado || false;
 
-  // ✅ NUEVO: Estados para el selector de mes
-  const [mesSeleccionado, setMesSeleccionado] = React.useState(new Date().getMonth() + 1);
-  const [anioSeleccionado, setAnioSeleccionado] = React.useState(new Date().getFullYear());
-  const [estatusMes, setEstatusMes] = React.useState(null);
-  const [cargandoEstatus, setCargandoEstatus] = React.useState(true);
+  // Vista 1: Información de la persona
+  if (persona) {
+    return <VistaInformacion persona={persona} onReset={handleReset} onVolver={onVolver} />;
+  }
 
-  // ✅ Nombres de meses
-  const MESES_COMPLETOS = [
-    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
-  ];
-
-  // ✅ Cargar estatus del mes cuando cambia la selección
-  React.useEffect(() => {
-    const cargarEstatusMes = async () => {
-      try {
-        setCargandoEstatus(true);
-        const estatus = await supabaseService.obtenerEstatusMes(
-  persona.id || await buscarIdPorDNI(persona.dni), // Buscar por DNI si no hay ID
-  anioSeleccionado,
-  mesSeleccionado
-);
-        setEstatusMes(estatus);
-      } catch (error) {
-        console.error('Error cargando estatus:', error);
-        setEstatusMes({ estatus: false }); // Por defecto en false si hay error
-      } finally {
-        setCargandoEstatus(false);
-      }
-    };
-
-    cargarEstatusMes();
-  }, [mesSeleccionado, anioSeleccionado, persona]);
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      <div className="max-w-md mx-auto">
-        <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
-          <div className="bg-gradient-to-r from-indigo-600 to-indigo-700 p-6 text-white">
-            <div className="flex gap-2 mb-4">
-              <button
-                onClick={handleReset}
-                className="flex items-center gap-2 hover:opacity-80 transition bg-white/20 px-3 py-2 rounded-lg text-sm"
-              >
-                <ArrowLeft size={18} />
-                <span className="hidden sm:inline">Escanear otro</span>
-              </button>
-              {onVolver && (
-                <button
-                  onClick={onVolver}
-                  className="flex items-center gap-2 hover:opacity-80 transition bg-white/20 px-3 py-2 rounded-lg text-sm"
-                >
-                  <Home size={18} />
-                  <span className="hidden sm:inline">Inicio</span>
-                </button>
-              )}
-            </div>
-            <h1 className="text-xl md:text-2xl font-bold">Información del Cliente</h1>
-          </div>
-
-          <div className="p-6 space-y-6">
-            <div className="text-center pb-4 border-b-2 border-gray-100">
-              <div className="mb-4 flex justify-center items-center">
-                <FotoPersona foto={persona.foto} nombre={persona.nombre} />
-              </div>
-              
-              <h2 className="text-2xl md:text-3xl font-bold text-gray-800 mb-2">
-                {persona.nombre}
-              </h2>
-              <p className="text-gray-500 font-medium">DNI: {persona.dni}</p>
-            </div>
-
-            <div className="space-y-3">
-              {persona.email && persona.email.trim() !== '' && (
-                <InfoRow label="Email" value={persona.email} />
-              )}
-              <InfoRow label="Teléfono" value={persona.telefono} />
-            </div>
-
-            {/* ✅ NUEVO: Selector de Mes y Año */}
-            <div className="bg-gradient-to-r from-indigo-50 to-blue-50 p-5 rounded-xl">
-              <h3 className="font-bold text-lg text-gray-800 mb-4 flex items-center gap-2">
-                <Calendar size={20} className="text-indigo-600" />
-                Estatus Mensual
-              </h3>
-              
-              <div className="grid grid-cols-2 gap-3 mb-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Mes
-                  </label>
-                  <select
-                    value={mesSeleccionado}
-                    onChange={(e) => setMesSeleccionado(parseInt(e.target.value))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white text-sm"
-                  >
-                    {MESES_COMPLETOS.map((mes, index) => (
-                      <option key={index} value={index + 1}>
-                        {mes}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Año
-                  </label>
-                  <select
-                    value={anioSeleccionado}
-                    onChange={(e) => setAnioSeleccionado(parseInt(e.target.value))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white text-sm"
-                  >
-                    {[2024, 2025, 2026, 2027].map(anio => (
-                      <option key={anio} value={anio}>{anio}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* ✅ Mostrar estatus del mes seleccionado */}
-              {cargandoEstatus ? (
-                <div className="text-center py-4">
-                  <div className="animate-spin w-6 h-6 border-3 border-indigo-600 border-t-transparent rounded-full mx-auto"></div>
-                  <p className="text-xs text-gray-600 mt-2">Cargando...</p>
-                </div>
-              ) : (
-                <div className="bg-white rounded-lg p-4 border-2 border-gray-200">
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-700 font-medium text-sm">
-                      Estatus de {MESES_COMPLETOS[mesSeleccionado - 1]}:
-                    </span>
-                    <span className={`text-2xl md:text-3xl font-bold ${
-                      estatusMes?.estatus ? 'text-green-600' : 'text-red-600'
-                    }`}>
-                      {estatusMes?.estatus ? '✓' : '✗'}
-                    </span>
-                  </div>
-                  <p className={`text-xs mt-2 font-medium ${
-                    estatusMes?.estatus ? 'text-green-700' : 'text-red-700'
-                  }`}>
-                    {estatusMes?.estatus ? 'Completado' : 'Pendiente'}
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {/* ✅ Estado de empadronamiento */}
-            <div className={`rounded-2xl p-6 md:p-8 text-center shadow-lg ${
-              empadronado
-                ? 'bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-400' 
-                : 'bg-gradient-to-br from-red-50 to-red-100 border-2 border-red-400'
-            }`}>
-              {empadronado ? (
-                <>
-                  <CheckCircle size={56} className="mx-auto text-green-600 mb-3 md:mb-4" />
-                  <h3 className="text-2xl md:text-3xl font-bold text-green-800 mb-2">
-                    ¡EMPADRONADO!
-                  </h3>
-                  <p className="text-green-700 font-medium text-base md:text-lg">
-                    Cliente en situación regular
-                  </p>
-                </>
-              ) : (
-                <>
-                  <XCircle size={56} className="mx-auto text-red-600 mb-3 md:mb-4" />
-                  <h3 className="text-2xl md:text-3xl font-bold text-red-800 mb-2">
-                    NO EMPADRONADO
-                  </h3>
-                  <p className="text-red-700 font-medium text-base md:text-lg">
-                    Requiere empadronamiento
-                  </p>
-                </>
-              )}
-            </div>
-
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-              <p className="text-xs text-blue-700">
-                <strong>Estado registrado:</strong> {persona.estado || 'Activo'}
-              </p>
-            </div>
-          </div>
-
-          <div className="bg-gray-50 p-4 text-center border-t">
-            <p className="text-xs text-gray-500">
-              Escaneado: {new Date().toLocaleString('es-PE')}
-            </p>
-            {persona.fechaGeneracion && (
-              <p className="text-xs text-gray-400 mt-1">
-                QR generado: {new Date(persona.fechaGeneracion).toLocaleString('es-PE')}
-              </p>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-  // ========================================
-  // VISTA 2: Escaneando
-  // ========================================
+  // Vista 2: Escaneando
   if (scanning && !persona) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
@@ -672,14 +672,12 @@ if (persona) {
             </div>
 
             <div className="p-6">
-              {/* ✅ Elemento para el escáner */}
               <div 
                 id="qr-reader" 
                 className="rounded-xl overflow-hidden mb-4"
                 style={{ minHeight: '300px' }}
               ></div>
               
-              {/* Selector de cámara */}
               {cameras.length > 1 && (
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -717,9 +715,7 @@ if (persona) {
     );
   }
 
-  // ========================================
-  // VISTA 3: Pantalla inicial
-  // ========================================
+  // Vista 3: Pantalla inicial
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
       <div className="max-w-md mx-auto">
@@ -751,7 +747,6 @@ if (persona) {
               </p>
             </div>
 
-            {/* Estado de carga de cámaras */}
             {camerasLoading ? (
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
                 <div className="animate-spin w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full mx-auto mb-2"></div>
@@ -824,7 +819,7 @@ if (persona) {
   );
 };
 
-// ✅ Componente auxiliar para mostrar información
+// Componente auxiliar para mostrar información
 const InfoRow = ({ label, value, large }) => (
   <div className="flex justify-between items-center py-3 border-b border-gray-100">
     <span className="text-gray-600 font-medium text-sm md:text-base">{label}:</span>
