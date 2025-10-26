@@ -1,8 +1,6 @@
-// src/components/QRScannerApp.jsx
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
-import { CheckCircle, XCircle, ArrowLeft, Camera, Home, Video, User, Upload } from 'lucide-react';
+import { CheckCircle, XCircle, ArrowLeft, Camera, Home, Video, User, Upload, Calendar } from 'lucide-react'; // ✅ Agregado Calendar
 import supabaseService from '../services/supabaseService';
 
 // ✅ Componente auxiliar para manejar carga de imágenes
@@ -439,105 +437,209 @@ const QRScannerApp = ({ onVolver }) => {
   // ========================================
   // VISTA 1: Mostrar información de la persona
   // ========================================
-  if (persona) {
-    const empadronado = persona.empadronado || false;
+  // ========================================
+// VISTA 1: Mostrar información de la persona
+// ========================================
+if (persona) {
+  const empadronado = persona.empadronado || false;
 
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-        <div className="max-w-md mx-auto">
-          <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
-            <div className="bg-gradient-to-r from-indigo-600 to-indigo-700 p-6 text-white">
-              <div className="flex gap-2 mb-4">
+  // ✅ NUEVO: Estados para el selector de mes
+  const [mesSeleccionado, setMesSeleccionado] = React.useState(new Date().getMonth() + 1);
+  const [anioSeleccionado, setAnioSeleccionado] = React.useState(new Date().getFullYear());
+  const [estatusMes, setEstatusMes] = React.useState(null);
+  const [cargandoEstatus, setCargandoEstatus] = React.useState(true);
+
+  // ✅ Nombres de meses
+  const MESES_COMPLETOS = [
+    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+  ];
+
+  // ✅ Cargar estatus del mes cuando cambia la selección
+  React.useEffect(() => {
+    const cargarEstatusMes = async () => {
+      try {
+        setCargandoEstatus(true);
+        const estatus = await supabaseService.obtenerEstatusMes(
+  persona.id || await buscarIdPorDNI(persona.dni), // Buscar por DNI si no hay ID
+  anioSeleccionado,
+  mesSeleccionado
+);
+        setEstatusMes(estatus);
+      } catch (error) {
+        console.error('Error cargando estatus:', error);
+        setEstatusMes({ estatus: false }); // Por defecto en false si hay error
+      } finally {
+        setCargandoEstatus(false);
+      }
+    };
+
+    cargarEstatusMes();
+  }, [mesSeleccionado, anioSeleccionado, persona]);
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+      <div className="max-w-md mx-auto">
+        <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
+          <div className="bg-gradient-to-r from-indigo-600 to-indigo-700 p-6 text-white">
+            <div className="flex gap-2 mb-4">
+              <button
+                onClick={handleReset}
+                className="flex items-center gap-2 hover:opacity-80 transition bg-white/20 px-3 py-2 rounded-lg text-sm"
+              >
+                <ArrowLeft size={18} />
+                <span className="hidden sm:inline">Escanear otro</span>
+              </button>
+              {onVolver && (
                 <button
-                  onClick={handleReset}
+                  onClick={onVolver}
                   className="flex items-center gap-2 hover:opacity-80 transition bg-white/20 px-3 py-2 rounded-lg text-sm"
                 >
-                  <ArrowLeft size={18} />
-                  <span className="hidden sm:inline">Escanear otro</span>
+                  <Home size={18} />
+                  <span className="hidden sm:inline">Inicio</span>
                 </button>
-                {onVolver && (
-                  <button
-                    onClick={onVolver}
-                    className="flex items-center gap-2 hover:opacity-80 transition bg-white/20 px-3 py-2 rounded-lg text-sm"
-                  >
-                    <Home size={18} />
-                    <span className="hidden sm:inline">Inicio</span>
-                  </button>
-                )}
-              </div>
-              <h1 className="text-xl md:text-2xl font-bold">Información del Cliente</h1>
-            </div>
-
-            <div className="p-6 space-y-6">
-              <div className="text-center pb-4 border-b-2 border-gray-100">
-                <div className="mb-4 flex justify-center items-center">
-                  <FotoPersona foto={persona.foto} nombre={persona.nombre} />
-                </div>
-                
-                <h2 className="text-2xl md:text-3xl font-bold text-gray-800 mb-2">
-                  {persona.nombre}
-                </h2>
-                <p className="text-gray-500 font-medium">DNI: {persona.dni}</p>
-              </div>
-
-              <div className="space-y-3">
-                {persona.email && persona.email.trim() !== '' && (
-                  <InfoRow label="Email" value={persona.email} />
-                )}
-                <InfoRow label="Teléfono" value={persona.telefono} />
-                <InfoRow label="Monto pagado" value={`S/ ${persona.monto}`} large />
-              </div>
-
-              <div className={`rounded-2xl p-6 md:p-8 text-center shadow-lg ${
-                empadronado
-                  ? 'bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-400' 
-                  : 'bg-gradient-to-br from-red-50 to-red-100 border-2 border-red-400'
-              }`}>
-                {empadronado ? (
-                  <>
-                    <CheckCircle size={56} className="mx-auto text-green-600 mb-3 md:mb-4" />
-                    <h3 className="text-2xl md:text-3xl font-bold text-green-800 mb-2">
-                      ¡EMPADRONADO!
-                    </h3>
-                    <p className="text-green-700 font-medium text-base md:text-lg">
-                      Cliente en situación regular
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <XCircle size={56} className="mx-auto text-red-600 mb-3 md:mb-4" />
-                    <h3 className="text-2xl md:text-3xl font-bold text-red-800 mb-2">
-                      NO EMPADRONADO
-                    </h3>
-                    <p className="text-red-700 font-medium text-base md:text-lg">
-                      Requiere empadronamiento
-                    </p>
-                  </>
-                )}
-              </div>
-
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                <p className="text-xs text-blue-700">
-                  <strong>Estado registrado:</strong> {persona.estado}
-                </p>
-              </div>
-            </div>
-
-            <div className="bg-gray-50 p-4 text-center border-t">
-              <p className="text-xs text-gray-500">
-                Escaneado: {new Date().toLocaleString('es-PE')}
-              </p>
-              {persona.fechaGeneracion && (
-                <p className="text-xs text-gray-400 mt-1">
-                  QR generado: {new Date(persona.fechaGeneracion).toLocaleString('es-PE')}
-                </p>
               )}
             </div>
+            <h1 className="text-xl md:text-2xl font-bold">Información del Cliente</h1>
+          </div>
+
+          <div className="p-6 space-y-6">
+            <div className="text-center pb-4 border-b-2 border-gray-100">
+              <div className="mb-4 flex justify-center items-center">
+                <FotoPersona foto={persona.foto} nombre={persona.nombre} />
+              </div>
+              
+              <h2 className="text-2xl md:text-3xl font-bold text-gray-800 mb-2">
+                {persona.nombre}
+              </h2>
+              <p className="text-gray-500 font-medium">DNI: {persona.dni}</p>
+            </div>
+
+            <div className="space-y-3">
+              {persona.email && persona.email.trim() !== '' && (
+                <InfoRow label="Email" value={persona.email} />
+              )}
+              <InfoRow label="Teléfono" value={persona.telefono} />
+            </div>
+
+            {/* ✅ NUEVO: Selector de Mes y Año */}
+            <div className="bg-gradient-to-r from-indigo-50 to-blue-50 p-5 rounded-xl">
+              <h3 className="font-bold text-lg text-gray-800 mb-4 flex items-center gap-2">
+                <Calendar size={20} className="text-indigo-600" />
+                Estatus Mensual
+              </h3>
+              
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Mes
+                  </label>
+                  <select
+                    value={mesSeleccionado}
+                    onChange={(e) => setMesSeleccionado(parseInt(e.target.value))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white text-sm"
+                  >
+                    {MESES_COMPLETOS.map((mes, index) => (
+                      <option key={index} value={index + 1}>
+                        {mes}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Año
+                  </label>
+                  <select
+                    value={anioSeleccionado}
+                    onChange={(e) => setAnioSeleccionado(parseInt(e.target.value))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white text-sm"
+                  >
+                    {[2024, 2025, 2026, 2027].map(anio => (
+                      <option key={anio} value={anio}>{anio}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* ✅ Mostrar estatus del mes seleccionado */}
+              {cargandoEstatus ? (
+                <div className="text-center py-4">
+                  <div className="animate-spin w-6 h-6 border-3 border-indigo-600 border-t-transparent rounded-full mx-auto"></div>
+                  <p className="text-xs text-gray-600 mt-2">Cargando...</p>
+                </div>
+              ) : (
+                <div className="bg-white rounded-lg p-4 border-2 border-gray-200">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-700 font-medium text-sm">
+                      Estatus de {MESES_COMPLETOS[mesSeleccionado - 1]}:
+                    </span>
+                    <span className={`text-2xl md:text-3xl font-bold ${
+                      estatusMes?.estatus ? 'text-green-600' : 'text-red-600'
+                    }`}>
+                      {estatusMes?.estatus ? '✓' : '✗'}
+                    </span>
+                  </div>
+                  <p className={`text-xs mt-2 font-medium ${
+                    estatusMes?.estatus ? 'text-green-700' : 'text-red-700'
+                  }`}>
+                    {estatusMes?.estatus ? 'Completado' : 'Pendiente'}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* ✅ Estado de empadronamiento */}
+            <div className={`rounded-2xl p-6 md:p-8 text-center shadow-lg ${
+              empadronado
+                ? 'bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-400' 
+                : 'bg-gradient-to-br from-red-50 to-red-100 border-2 border-red-400'
+            }`}>
+              {empadronado ? (
+                <>
+                  <CheckCircle size={56} className="mx-auto text-green-600 mb-3 md:mb-4" />
+                  <h3 className="text-2xl md:text-3xl font-bold text-green-800 mb-2">
+                    ¡EMPADRONADO!
+                  </h3>
+                  <p className="text-green-700 font-medium text-base md:text-lg">
+                    Cliente en situación regular
+                  </p>
+                </>
+              ) : (
+                <>
+                  <XCircle size={56} className="mx-auto text-red-600 mb-3 md:mb-4" />
+                  <h3 className="text-2xl md:text-3xl font-bold text-red-800 mb-2">
+                    NO EMPADRONADO
+                  </h3>
+                  <p className="text-red-700 font-medium text-base md:text-lg">
+                    Requiere empadronamiento
+                  </p>
+                </>
+              )}
+            </div>
+
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <p className="text-xs text-blue-700">
+                <strong>Estado registrado:</strong> {persona.estado || 'Activo'}
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-gray-50 p-4 text-center border-t">
+            <p className="text-xs text-gray-500">
+              Escaneado: {new Date().toLocaleString('es-PE')}
+            </p>
+            {persona.fechaGeneracion && (
+              <p className="text-xs text-gray-400 mt-1">
+                QR generado: {new Date(persona.fechaGeneracion).toLocaleString('es-PE')}
+              </p>
+            )}
           </div>
         </div>
       </div>
-    );
-  }
+    </div>
+  );
+}
 
   // ========================================
   // VISTA 2: Escaneando

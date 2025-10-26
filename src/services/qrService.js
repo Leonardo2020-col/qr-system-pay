@@ -3,6 +3,7 @@
 export const generarQRCode = async (persona, empadronado) => {
   // Crear datos del QR SIN la foto
   const datosQR = {
+    id: persona.id,
     nombre: persona.nombre,
     dni: persona.dni,
     email: persona.email || '',
