@@ -209,14 +209,23 @@ useEffect(() => {
     return;
   }
 
+  // ✅ PRIMERO cambiar el estado para que se renderice el elemento
+  setScanning(true);
+  
+  // ✅ Esperar a que React renderice el DOM
+  await new Promise(resolve => setTimeout(resolve, 300));
+
   try {
-    // ✅ Verificar que el elemento DOM existe
+    // ✅ Ahora sí verificar que el elemento existe
     const readerElement = document.getElementById('qr-reader');
     if (!readerElement) {
-      console.error('❌ Elemento qr-reader no encontrado');
-      alert('Error: Elemento de escáner no encontrado. Recarga la página.');
+      console.error('❌ Elemento qr-reader no encontrado después de 300ms');
+      setScanning(false);
+      alert('Error de inicialización. Por favor, intenta de nuevo o usa "Subir Imagen".');
       return;
     }
+
+    console.log('✅ Elemento qr-reader encontrado');
 
     // ✅ Limpiar escáner previo si existe
     if (scannerRef.current) {
@@ -225,80 +234,59 @@ useEffect(() => {
         await scannerRef.current.clear();
         scannerRef.current = null;
       } catch (e) {
-        console.log('No había escáner previo activo');
+        console.log('Limpiando escáner previo');
       }
     }
-
-    // ✅ Pequeña pausa para asegurar que el DOM está listo
-    await new Promise(resolve => setTimeout(resolve, 100));
 
     console.log('🎥 Iniciando escáner con cámara:', selectedCamera);
 
     const html5QrCode = new Html5Qrcode('qr-reader');
     scannerRef.current = html5QrCode;
 
-    // ✅ Configuración más simple y compatible
+    // ✅ Configuración simple y compatible
     const config = {
       fps: 10,
-      qrbox: 250,
+      qrbox: { width: 250, height: 250 },
       aspectRatio: 1.0,
-      disableFlip: false,
     };
 
-    // ✅ Usar diferentes enfoques según el tipo de cámara
-    let cameraConfig;
-    
-    // Intentar con facingMode primero (mejor para móviles)
-    if (selectedCamera.includes('back') || selectedCamera.includes('rear') || selectedCamera.includes('environment')) {
-      cameraConfig = { facingMode: "environment" };
-    } else if (selectedCamera.includes('front') || selectedCamera.includes('user')) {
-      cameraConfig = { facingMode: "user" };
-    } else {
-      // Si no se puede determinar, usar el ID directamente
-      cameraConfig = selectedCamera;
-    }
-
-    console.log('📷 Configuración de cámara:', cameraConfig);
-
     await html5QrCode.start(
-      cameraConfig,
+      selectedCamera,
       config,
       onScanSuccess,
       onScanError
     );
 
     setScannerStarted(true);
-    setScanning(true);
     console.log('✅ Escáner iniciado correctamente');
   } catch (err) {
     console.error('❌ Error completo:', err);
     
-    // ✅ Limpiar referencias en caso de error
+    // ✅ Limpiar en caso de error
+    setScanning(false);
+    setScannerStarted(false);
+    
     if (scannerRef.current) {
       try {
         await scannerRef.current.stop();
         await scannerRef.current.clear();
       } catch (e) {
-        // Ignorar errores de limpieza
+        // Ignorar
       }
       scannerRef.current = null;
     }
     
-    // ✅ Mensajes de error mejorados
-    let errorMessage = 'Error al iniciar la cámara.';
+    // ✅ Mensaje de error específico
+    let errorMessage = '';
     
     if (err.name === 'NotAllowedError' || err.message?.includes('Permission')) {
-      errorMessage = '⚠️ Permiso de cámara denegado.\n\nPor favor:\n1. Ve a configuración del navegador\n2. Permite acceso a la cámara\n3. Recarga la página';
-    } else if (err.name === 'NotFoundError' || err.message?.includes('not found')) {
-      errorMessage = '⚠️ No se encontró ninguna cámara.\n\nPuedes usar la opción "Subir Imagen" en su lugar.';
-    } else if (err.name === 'NotReadableError' || err.message?.includes('in use')) {
-      errorMessage = '⚠️ La cámara está en uso.\n\nCierra otras aplicaciones que usen la cámara e intenta de nuevo.';
-    } else if (err.name === 'OverconstrainedError') {
-      errorMessage = '⚠️ Configuración de cámara no soportada.\n\nIntenta con otra cámara o usa "Subir Imagen".';
-    } else if (err.message?.includes('undefined')) {
-      errorMessage = '⚠️ Error de inicialización.\n\nPor favor:\n1. Recarga la página\n2. Permite permisos de cámara\n3. Usa "Subir Imagen" como alternativa';
+      errorMessage = '⚠️ Permiso de cámara denegado.\n\n1. Toca el candado en la barra de dirección\n2. Permite acceso a la cámara\n3. Recarga la página\n\nO usa "Subir Imagen".';
+    } else if (err.name === 'NotFoundError') {
+      errorMessage = '⚠️ No se encontró cámara.\n\nUsa "Subir Imagen" para escanear.';
+    } else if (err.name === 'NotReadableError') {
+      errorMessage = '⚠️ Cámara en uso por otra app.\n\nCierra otras apps e intenta de nuevo.';
     } else {
-      errorMessage = `❌ Error: ${err.message || 'Desconocido'}\n\nIntenta usar "Subir Imagen" en su lugar.`;
+      errorMessage = '❌ Error al iniciar cámara.\n\nUsa "Subir Imagen" como alternativa.';
     }
     
     alert(errorMessage);
@@ -651,13 +639,18 @@ useEffect(() => {
               </div>
             ) : (
               <button
-                onClick={startScanning}
-                disabled={cameras.length === 0}
-                className="w-full bg-gradient-to-r from-indigo-600 to-indigo-700 text-white py-4 px-6 rounded-xl hover:from-indigo-700 hover:to-indigo-800 transition shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
-              >
-                <Video size={24} />
-                <span className="font-semibold text-lg">Usar Cámara</span>
-              </button>
+  onClick={async () => {
+    console.log('🔘 Botón de cámara presionado');
+    await startScanning();
+  }}
+  disabled={cameras.length === 0 || camerasLoading}
+  className="w-full bg-gradient-to-r from-indigo-600 to-indigo-700 text-white py-4 px-6 rounded-xl hover:from-indigo-700 hover:to-indigo-800 transition shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+>
+  <Video size={24} />
+  <span className="font-semibold text-lg">
+    {camerasLoading ? 'Detectando...' : 'Usar Cámara'}
+  </span>
+</button>
             )}
 
             <div className="relative">
