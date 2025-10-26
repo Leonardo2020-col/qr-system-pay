@@ -11,7 +11,6 @@ const FotoPersona = ({ foto, nombre }) => {
   const [error, setError] = useState(false);
 
   if (!foto || foto.trim() === '') {
-    // Sin foto: mostrar inicial
     return (
       <div 
         style={{
@@ -129,182 +128,195 @@ const QRScannerApp = ({ onVolver }) => {
   const scannerRef = useRef(null);
   const fileInputRef = useRef(null);
 
+  // ✅ Debug temporal - ver estados
+  useEffect(() => {
+    console.log('📊 Estados:', {
+      scanning,
+      scannerStarted,
+      hasPersona: !!persona,
+      hasDNI: !!currentDNI
+    });
+  }, [scanning, scannerStarted, persona, currentDNI]);
+
   // ✅ Cargar cámaras al montar el componente
   useEffect(() => {
-  const getCameras = async () => {
-    try {
-      setCamerasLoading(true);
-      setCameraError(null);
-      
-      console.log('🔍 Detectando cámaras...');
-      
-      // ✅ Verificar si el API está disponible
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        throw new Error('API de cámara no disponible en este navegador');
-      }
-      
-      const devices = await Html5Qrcode.getCameras();
-      
-      console.log('📹 Cámaras detectadas:', devices);
-      
-      if (devices && devices.length > 0) {
-        setCameras(devices);
+    const getCameras = async () => {
+      try {
+        setCamerasLoading(true);
+        setCameraError(null);
         
-        // ✅ Buscar cámara trasera con múltiples criterios
-        const backCamera = devices.find(d => {
-          const label = d.label.toLowerCase();
-          return label.includes('back') || 
-                 label.includes('trasera') ||
-                 label.includes('rear') ||
-                 label.includes('environment') ||
-                 label.includes('camera 0') || // Algunos dispositivos
-                 label.includes('cámara 0');
+        console.log('🔍 Detectando cámaras...');
+        
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          throw new Error('API de cámara no disponible en este navegador');
+        }
+        
+        const devices = await Html5Qrcode.getCameras();
+        
+        console.log('📹 Cámaras detectadas:', devices);
+        
+        if (devices && devices.length > 0) {
+          setCameras(devices);
+          
+          const backCamera = devices.find(d => {
+            const label = d.label.toLowerCase();
+            return label.includes('back') || 
+                   label.includes('trasera') ||
+                   label.includes('rear') ||
+                   label.includes('environment') ||
+                   label.includes('camera 0') ||
+                   label.includes('cámara 0');
+          });
+          
+          const defaultCamera = backCamera || devices[0];
+          setSelectedCamera(defaultCamera.id);
+          
+          console.log('✅ Cámara seleccionada:', defaultCamera.label || defaultCamera.id);
+        } else {
+          setCameraError('No se encontraron cámaras disponibles');
+          console.warn('⚠️ No hay cámaras disponibles');
+        }
+      } catch (err) {
+        console.error('❌ Error obteniendo cámaras:', err);
+        
+        let errorMsg = 'Error al acceder a la cámara.';
+        
+        if (err.message?.includes('not available')) {
+          errorMsg = 'Cámara no disponible en este navegador. Usa "Subir Imagen".';
+        } else if (err.name === 'NotAllowedError') {
+          errorMsg = 'Permiso de cámara denegado. Verifica la configuración.';
+        } else {
+          errorMsg = 'Error detectando cámaras. Puedes usar "Subir Imagen".';
+        }
+        
+        setCameraError(errorMsg);
+      } finally {
+        setCamerasLoading(false);
+      }
+    };
+
+    getCameras();
+  }, []);
+
+  // ✅ Limpiar al desmontar
+  useEffect(() => {
+    return () => {
+      if (scannerRef.current) {
+        scannerRef.current.stop().catch(err => {
+          console.log('Error al detener escáner en cleanup:', err);
         });
-        
-        const defaultCamera = backCamera || devices[0];
-        setSelectedCamera(defaultCamera.id);
-        
-        console.log('✅ Cámara seleccionada:', defaultCamera.label || defaultCamera.id);
-      } else {
-        setCameraError('No se encontraron cámaras disponibles');
-        console.warn('⚠️ No hay cámaras disponibles');
       }
-    } catch (err) {
-      console.error('❌ Error obteniendo cámaras:', err);
-      
-      let errorMsg = 'Error al acceder a la cámara.';
-      
-      if (err.message?.includes('not available')) {
-        errorMsg = 'Cámara no disponible en este navegador. Usa "Subir Imagen".';
-      } else if (err.name === 'NotAllowedError') {
-        errorMsg = 'Permiso de cámara denegado. Verifica la configuración.';
-      } else {
-        errorMsg = 'Error detectando cámaras. Puedes usar "Subir Imagen".';
-      }
-      
-      setCameraError(errorMsg);
-    } finally {
-      setCamerasLoading(false);
-    }
-  };
-
-  getCameras();
-}, []);
-
-// ✅ Verificar si estamos en HTTPS (requerido para cámara)
-useEffect(() => {
-  const isSecure = window.location.protocol === 'https:' || 
-                   window.location.hostname === 'localhost' ||
-                   window.location.hostname === '127.0.0.1';
-  
-  if (!isSecure) {
-    console.warn('⚠️ La cámara requiere HTTPS para funcionar');
-    setCameraError('La cámara solo funciona en HTTPS. Usa "Subir Imagen".');
-  }
-}, []);
+    };
+  }, []);
 
   const startScanning = async () => {
-  if (!selectedCamera) {
-    alert('Por favor selecciona una cámara');
-    return;
-  }
-
-  // ✅ PRIMERO cambiar el estado para que se renderice el elemento
-  setScanning(true);
-  
-  // ✅ Esperar a que React renderice el DOM
-  await new Promise(resolve => setTimeout(resolve, 300));
-
-  try {
-    // ✅ Ahora sí verificar que el elemento existe
-    const readerElement = document.getElementById('qr-reader');
-    if (!readerElement) {
-      console.error('❌ Elemento qr-reader no encontrado después de 300ms');
-      setScanning(false);
-      alert('Error de inicialización. Por favor, intenta de nuevo o usa "Subir Imagen".');
+    if (!selectedCamera) {
+      alert('Por favor selecciona una cámara');
       return;
     }
 
-    console.log('✅ Elemento qr-reader encontrado');
+    // ✅ PRIMERO cambiar el estado para renderizar el elemento
+    setScanning(true);
+    
+    // ✅ Esperar a que React renderice el DOM
+    await new Promise(resolve => setTimeout(resolve, 300));
 
-    // ✅ Limpiar escáner previo si existe
-    if (scannerRef.current) {
-      try {
-        await scannerRef.current.stop();
-        await scannerRef.current.clear();
+    try {
+      const readerElement = document.getElementById('qr-reader');
+      if (!readerElement) {
+        console.error('❌ Elemento qr-reader no encontrado');
+        setScanning(false);
+        alert('Error de inicialización. Intenta de nuevo o usa "Subir Imagen".');
+        return;
+      }
+
+      console.log('✅ Elemento qr-reader encontrado');
+
+      // ✅ Limpiar escáner previo si existe
+      if (scannerRef.current) {
+        try {
+          await scannerRef.current.stop();
+          await scannerRef.current.clear();
+          scannerRef.current = null;
+        } catch (e) {
+          console.log('Limpiando escáner previo');
+        }
+      }
+
+      console.log('🎥 Iniciando escáner con cámara:', selectedCamera);
+
+      const html5QrCode = new Html5Qrcode('qr-reader');
+      scannerRef.current = html5QrCode;
+
+      const config = {
+        fps: 10,
+        qrbox: { width: 250, height: 250 },
+        aspectRatio: 1.0,
+      };
+
+      await html5QrCode.start(
+        selectedCamera,
+        config,
+        onScanSuccess,
+        onScanError
+      );
+
+      setScannerStarted(true);
+      console.log('✅ Escáner iniciado correctamente');
+    } catch (err) {
+      console.error('❌ Error completo:', err);
+      
+      setScanning(false);
+      setScannerStarted(false);
+      
+      if (scannerRef.current) {
+        try {
+          await scannerRef.current.stop();
+          await scannerRef.current.clear();
+        } catch (e) {
+          // Ignorar
+        }
         scannerRef.current = null;
-      } catch (e) {
-        console.log('Limpiando escáner previo');
       }
-    }
-
-    console.log('🎥 Iniciando escáner con cámara:', selectedCamera);
-
-    const html5QrCode = new Html5Qrcode('qr-reader');
-    scannerRef.current = html5QrCode;
-
-    // ✅ Configuración simple y compatible
-    const config = {
-      fps: 10,
-      qrbox: { width: 250, height: 250 },
-      aspectRatio: 1.0,
-    };
-
-    await html5QrCode.start(
-      selectedCamera,
-      config,
-      onScanSuccess,
-      onScanError
-    );
-
-    setScannerStarted(true);
-    console.log('✅ Escáner iniciado correctamente');
-  } catch (err) {
-    console.error('❌ Error completo:', err);
-    
-    // ✅ Limpiar en caso de error
-    setScanning(false);
-    setScannerStarted(false);
-    
-    if (scannerRef.current) {
-      try {
-        await scannerRef.current.stop();
-        await scannerRef.current.clear();
-      } catch (e) {
-        // Ignorar
+      
+      let errorMessage = '';
+      
+      if (err.name === 'NotAllowedError' || err.message?.includes('Permission')) {
+        errorMessage = '⚠️ Permiso de cámara denegado.\n\n1. Toca el candado en la barra\n2. Permite cámara\n3. Recarga\n\nO usa "Subir Imagen".';
+      } else if (err.name === 'NotFoundError') {
+        errorMessage = '⚠️ No se encontró cámara.\n\nUsa "Subir Imagen".';
+      } else if (err.name === 'NotReadableError') {
+        errorMessage = '⚠️ Cámara en uso.\n\nCierra otras apps.';
+      } else {
+        errorMessage = '❌ Error al iniciar cámara.\n\nUsa "Subir Imagen".';
       }
-      scannerRef.current = null;
+      
+      alert(errorMessage);
     }
-    
-    // ✅ Mensaje de error específico
-    let errorMessage = '';
-    
-    if (err.name === 'NotAllowedError' || err.message?.includes('Permission')) {
-      errorMessage = '⚠️ Permiso de cámara denegado.\n\n1. Toca el candado en la barra de dirección\n2. Permite acceso a la cámara\n3. Recarga la página\n\nO usa "Subir Imagen".';
-    } else if (err.name === 'NotFoundError') {
-      errorMessage = '⚠️ No se encontró cámara.\n\nUsa "Subir Imagen" para escanear.';
-    } else if (err.name === 'NotReadableError') {
-      errorMessage = '⚠️ Cámara en uso por otra app.\n\nCierra otras apps e intenta de nuevo.';
-    } else {
-      errorMessage = '❌ Error al iniciar cámara.\n\nUsa "Subir Imagen" como alternativa.';
-    }
-    
-    alert(errorMessage);
-  }
-};
+  };
 
   const stopScanning = async () => {
+    console.log('🛑 Deteniendo escáner...');
+    
     if (scannerRef.current && scannerStarted) {
       try {
         await scannerRef.current.stop();
-        await scannerRef.current.clear();
-        setScannerStarted(false);
-        setScanning(false);
         console.log('✅ Escáner detenido');
       } catch (err) {
         console.error('❌ Error deteniendo escáner:', err);
       }
+      
+      try {
+        await scannerRef.current.clear();
+        console.log('✅ Escáner limpiado');
+      } catch (err) {
+        console.error('❌ Error limpiando escáner:', err);
+      }
     }
+    
+    setScannerStarted(false);
+    setScanning(false);
+    scannerRef.current = null;
   };
 
   const onScanSuccess = async (decodedText) => {
@@ -318,6 +330,9 @@ useEffect(() => {
       
       console.log('📋 Datos del QR:', personaData);
       
+      // ✅ CRÍTICO: Detener escáner ANTES de cambiar el estado
+      await stopScanning();
+      
       // ✅ Buscar persona completa en Supabase
       try {
         const personaCompleta = await supabaseService.buscarPorDNI(personaData.dni);
@@ -325,11 +340,9 @@ useEffect(() => {
         if (personaCompleta) {
           console.log('✅ Persona encontrada en Supabase');
           
-          // ✅ Usar foto de Supabase si existe
           if (personaCompleta.foto_url && personaCompleta.foto_url.trim() !== '') {
             let fotoUrl = personaCompleta.foto_url.trim();
             
-            // Forzar HTTPS
             if (fotoUrl.startsWith('http:')) {
               fotoUrl = fotoUrl.replace('http:', 'https:');
             }
@@ -349,12 +362,14 @@ useEffect(() => {
         personaData.foto = null;
       }
       
-      // ✅ Establecer DNI y persona
+      // ✅ Establecer DNI y persona DESPUÉS de detener escáner
       setCurrentDNI(personaData.dni);
       setPersona(personaData);
-      setScanning(false);
       
-      await stopScanning();
+      // ✅ Asegurar que scanning está en false
+      setScanning(false);
+      setScannerStarted(false);
+      
     } catch (error) {
       console.error('❌ Error al parsear QR:', error);
       alert('Código QR inválido. Por favor, intenta de nuevo.');
@@ -362,16 +377,27 @@ useEffect(() => {
   };
 
   const onScanError = (err) => {
-    // Ignorar errores de escaneo continuo para no saturar la consola
+    // Ignorar errores de escaneo continuo
   };
 
   const handleReset = async () => {
+    console.log('🔄 Reset completo');
+    
+    // ✅ Detener escáner si está activo
     await stopScanning();
+    
+    // ✅ Limpiar todos los estados
     setPersona(null);
     setCurrentDNI(null);
     setScanning(false);
     setScannerStarted(false);
     setProcessingImage(false);
+    
+    // ✅ Limpiar el elemento del DOM
+    const readerElement = document.getElementById('qr-reader');
+    if (readerElement) {
+      readerElement.innerHTML = '';
+    }
   };
 
   const handleFileUpload = async (event) => {
@@ -408,14 +434,8 @@ useEffect(() => {
     fileInputRef.current?.click();
   };
 
-  useEffect(() => {
-    return () => {
-      stopScanning();
-    };
-  }, []);
-
   // ========================================
-  // VISTA: Mostrar información de la persona
+  // VISTA 1: Mostrar información de la persona
   // ========================================
   if (persona) {
     const empadronado = persona.empadronado || false;
@@ -518,9 +538,9 @@ useEffect(() => {
   }
 
   // ========================================
-  // VISTA: Escaneando
+  // VISTA 2: Escaneando
   // ========================================
-  if (scanning) {
+  if (scanning && !persona) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
         <div className="max-w-md mx-auto">
@@ -548,9 +568,14 @@ useEffect(() => {
             </div>
 
             <div className="p-6">
-              <div id="qr-reader" className="rounded-xl overflow-hidden mb-4"></div>
+              {/* ✅ CRÍTICO: Este div debe existir para Html5Qrcode */}
+              <div 
+                id="qr-reader" 
+                className="rounded-xl overflow-hidden mb-4"
+                style={{ minHeight: '300px' }}
+              ></div>
               
-              {/* ✅ Selector de cámara solo si hay múltiples */}
+              {/* Selector de cámara */}
               {cameras.length > 1 && (
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -589,7 +614,7 @@ useEffect(() => {
   }
 
   // ========================================
-  // VISTA: Pantalla inicial
+  // VISTA 3: Pantalla inicial
   // ========================================
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
@@ -622,7 +647,7 @@ useEffect(() => {
               </p>
             </div>
 
-            {/* ✅ Mostrar estado de carga de cámaras */}
+            {/* Estado de carga de cámaras */}
             {camerasLoading ? (
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
                 <div className="animate-spin w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full mx-auto mb-2"></div>
@@ -639,18 +664,13 @@ useEffect(() => {
               </div>
             ) : (
               <button
-  onClick={async () => {
-    console.log('🔘 Botón de cámara presionado');
-    await startScanning();
-  }}
-  disabled={cameras.length === 0 || camerasLoading}
-  className="w-full bg-gradient-to-r from-indigo-600 to-indigo-700 text-white py-4 px-6 rounded-xl hover:from-indigo-700 hover:to-indigo-800 transition shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
->
-  <Video size={24} />
-  <span className="font-semibold text-lg">
-    {camerasLoading ? 'Detectando...' : 'Usar Cámara'}
-  </span>
-</button>
+                onClick={startScanning}
+                disabled={cameras.length === 0}
+                className="w-full bg-gradient-to-r from-indigo-600 to-indigo-700 text-white py-4 px-6 rounded-xl hover:from-indigo-700 hover:to-indigo-800 transition shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+              >
+                <Video size={24} />
+                <span className="font-semibold text-lg">Usar Cámara</span>
+              </button>
             )}
 
             <div className="relative">
