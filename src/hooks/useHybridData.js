@@ -56,33 +56,36 @@ export const useHybridData = () => {
   }, []);
 
   // Sincronizar con Google Sheets
+  const sincronizarConGoogleSheets = useCallback(async (personasData) => {
+    console.log('🔄 Iniciando sincronización desde hook...');
+    
+    // ✅ Verificar estado actualizado
+    const estaAutenticado = googleSheetsSync.isAuthenticated();
+    console.log('🔍 Estado de autenticación:', estaAutenticado);
+    
+    if (!estaAutenticado) {
+      const error = 'No autenticado con Google Sheets';
+      console.error('❌', error);
+      throw new Error(error);
+    }
 
-const sincronizarConGoogleSheets = useCallback(async (personasData) => {
-  console.log('🔄 Iniciando sincronización desde hook...');
-  
-  if (!googleSheetsAuth) {
-    const error = 'No autenticado con Google Sheets';
-    console.error('❌', error);
-    throw new Error(error);
-  }
-
-  try {
-    setSincronizando(true);
-    const datosParaSincronizar = personasData || personas;
-    
-    console.log('📊 Datos a sincronizar:', datosParaSincronizar.length);
-    
-    await googleSheetsSync.sincronizarAGoogleSheets(datosParaSincronizar);
-    
-    console.log('✅ Sincronización completada');
-    return true;
-  } catch (err) {
-    console.error('❌ Error en sincronización:', err);
-    throw new Error(`Error al sincronizar: ${err.message}`);
-  } finally {
-    setSincronizando(false);
-  }
-}, [personas, googleSheetsAuth]);
+    try {
+      setSincronizando(true);
+      const datosParaSincronizar = personasData || personas;
+      
+      console.log('📊 Datos a sincronizar:', datosParaSincronizar.length);
+      
+      await googleSheetsSync.sincronizarAGoogleSheets(datosParaSincronizar);
+      
+      console.log('✅ Sincronización completada');
+      return true;
+    } catch (err) {
+      console.error('❌ Error en sincronización:', err);
+      throw new Error(`Error al sincronizar: ${err.message}`);
+    } finally {
+      setSincronizando(false);
+    }
+  }, [personas]); // ✅ Removido googleSheetsAuth de dependencias
 
   // Agregar persona
   const agregarPersona = useCallback(async (persona) => {
@@ -93,7 +96,7 @@ const sincronizarConGoogleSheets = useCallback(async (personasData) => {
       const personasActualizadas = await cargarPersonas();
       
       // Sincronizar automáticamente si está conectado
-      if (googleSheetsAuth) {
+      if (googleSheetsSync.isAuthenticated()) {
         try {
           await sincronizarConGoogleSheets(personasActualizadas);
         } catch (syncError) {
@@ -109,7 +112,7 @@ const sincronizarConGoogleSheets = useCallback(async (personasData) => {
     } finally {
       setLoading(false);
     }
-  }, [cargarPersonas, sincronizarConGoogleSheets, googleSheetsAuth]);
+  }, [cargarPersonas, sincronizarConGoogleSheets]);
 
   // Actualizar persona
   const actualizarPersona = useCallback(async (id, persona) => {
@@ -120,7 +123,7 @@ const sincronizarConGoogleSheets = useCallback(async (personasData) => {
       const personasActualizadas = await cargarPersonas();
       
       // Sincronizar automáticamente si está conectado
-      if (googleSheetsAuth) {
+      if (googleSheetsSync.isAuthenticated()) {
         try {
           await sincronizarConGoogleSheets(personasActualizadas);
         } catch (syncError) {
@@ -136,7 +139,7 @@ const sincronizarConGoogleSheets = useCallback(async (personasData) => {
     } finally {
       setLoading(false);
     }
-  }, [cargarPersonas, sincronizarConGoogleSheets, googleSheetsAuth]);
+  }, [cargarPersonas, sincronizarConGoogleSheets]);
 
   // Eliminar persona
   const eliminarPersona = useCallback(async (id) => {
@@ -147,7 +150,7 @@ const sincronizarConGoogleSheets = useCallback(async (personasData) => {
       const personasActualizadas = await cargarPersonas();
       
       // Sincronizar automáticamente si está conectado
-      if (googleSheetsAuth) {
+      if (googleSheetsSync.isAuthenticated()) {
         try {
           await sincronizarConGoogleSheets(personasActualizadas);
         } catch (syncError) {
@@ -163,24 +166,43 @@ const sincronizarConGoogleSheets = useCallback(async (personasData) => {
     } finally {
       setLoading(false);
     }
-  }, [cargarPersonas, sincronizarConGoogleSheets, googleSheetsAuth]);
+  }, [cargarPersonas, sincronizarConGoogleSheets]);
 
   // Conectar con Google Sheets
   const conectarGoogleSheets = useCallback(async () => {
     try {
       setLoading(true);
+      setError(null); // ✅ Limpiar errores previos
+      
+      console.log('🔐 Iniciando conexión con Google Sheets...');
+      
       await googleSheetsSync.signIn();
-      setGoogleSheetsAuth(true);
+      
+      // ✅ Esperar un poco para que el token se configure
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // ✅ Verificar que realmente está autenticado
+      const estaAutenticado = googleSheetsSync.isAuthenticated();
+      console.log('✅ Estado después de signIn:', estaAutenticado);
+      
+      setGoogleSheetsAuth(estaAutenticado);
+      
+      if (!estaAutenticado) {
+        throw new Error('La autenticación no se completó correctamente');
+      }
       
       // Sincronizar datos actuales
       if (personas.length > 0) {
+        console.log('📊 Sincronizando personas existentes...');
         await sincronizarConGoogleSheets(personas);
       }
       
       return true;
     } catch (err) {
-      setError('Error al conectar con Google Sheets: ' + err.message);
-      console.error(err);
+      const errorMsg = 'Error al conectar con Google Sheets: ' + err.message;
+      setError(errorMsg);
+      console.error('❌', errorMsg);
+      setGoogleSheetsAuth(false); // ✅ Asegurar que el estado sea falso si falla
       return false;
     } finally {
       setLoading(false);
@@ -191,6 +213,7 @@ const sincronizarConGoogleSheets = useCallback(async (personasData) => {
   const desconectarGoogleSheets = useCallback(() => {
     googleSheetsSync.signOut();
     setGoogleSheetsAuth(false);
+    setError(null); // ✅ Limpiar errores al desconectar
   }, []);
 
   // Cargar personas al montar
