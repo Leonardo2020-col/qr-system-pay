@@ -1,7 +1,7 @@
 {
   "short_name": "QR Pagos",
-  "name": "Sistema de Gestión QR - Control de Pagos",
-  "description": "Sistema para gestionar pagos y generar códigos QR",
+  "name": "Sistema de Gestión QR",
+  "description": "Sistema para gestionar y generar códigos QR",
   "icons": [
     {
       "src": "favicon.ico",
