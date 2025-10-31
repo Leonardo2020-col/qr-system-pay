@@ -173,20 +173,20 @@ const QRScannerApp = ({ onVolver }) => {
                   <div className="grid grid-cols-3 gap-2">
                     {mesesNombres.map((mes, idx) => {
                       const mesNumero = idx + 1;
-                      const estaPagado = estatusMensual[mesNumero] || false;
+                      const estaCheckeado = estatusMensual[mesNumero] || false;
                       
                       return (
                         <div
                           key={idx}
                           className={`p-2 rounded-lg text-center text-sm font-medium ${
-                            estaPagado
+                            estaCheckeado
                               ? 'bg-green-100 text-green-800'
-                              : 'bg-red-100 text-red-800'
+                              : 'bg-gray-100 text-gray-600'
                           }`}
                         >
                           <div>{mes}</div>
                           <div className="text-xs mt-1">
-                            {estaPagado ? '✓ Pagado' : '✗ Pendiente'}
+                            {estaCheckeado ? '✓ Checkeado' : '○ No checkeado'}
                           </div>
                         </div>
                       );

@@ -194,14 +194,14 @@ const PersonaTableWithMonths = ({
                         <div className="w-6 h-6 mx-auto rounded bg-gray-100 animate-pulse"></div>
                       ) : (
                         <button
-                          onClick={() => handleToggleEstatus(persona, idx)}
-                          className={`w-6 h-6 rounded transition-all ${
-                            estatus
-                              ? 'bg-green-500 hover:bg-green-600'
-                              : 'bg-red-300 hover:bg-red-400'
-                          }`}
-                          title={`${meses[idx]}: ${estatus ? 'Pagado' : 'No pagado'}`}
-                        />
+  onClick={() => handleToggleEstatus(persona, idx)}
+  className={`w-6 h-6 rounded transition-all ${
+    estatus
+      ? 'bg-green-500 hover:bg-green-600'
+      : 'bg-red-300 hover:bg-red-400'
+  }`}
+  title={`${meses[idx]}: ${estatus ? 'Checkeado' : 'No checkeado'}`}
+/>
                       )}
                     </td>
                   );
