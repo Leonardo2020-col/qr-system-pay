@@ -10,6 +10,7 @@
     <!-- PWA - Apple -->
     <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
     <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Sistema QR" />
     
@@ -19,6 +20,12 @@
     <!-- Optimización de carga -->
     <link rel="preconnect" href="https://apis.google.com" />
     <link rel="preconnect" href="https://accounts.google.com" />
+    <link rel="dns-prefetch" href="https://apis.google.com" />
+    <link rel="dns-prefetch" href="https://accounts.google.com" />
+    
+    <!-- Permisos de cámara para iOS Safari -->
+    <meta http-equiv="Feature-Policy" content="camera 'self'" />
+    <meta http-equiv="Permissions-Policy" content="camera=(self)" />
     
     <title>Sistema QR - Gestión de Empadronamiento</title>
     

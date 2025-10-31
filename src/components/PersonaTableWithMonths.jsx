@@ -25,35 +25,50 @@ const PersonaTableWithMonths = ({
   }, [personas, anioSeleccionado]);
 
   const cargarEstatusMensuales = async () => {
-    if (!personas || personas.length === 0) {
-      setCargandoEstatus(false);
-      return;
-    }
+  if (!personas || personas.length === 0) {
+    setCargandoEstatus(false);
+    setEstatusPorPersona({});
+    return;
+  }
 
-    setCargandoEstatus(true);
-    const estatusMap = {};
+  setCargandoEstatus(true);
+  const estatusMap = {};
 
-    for (const persona of personas) {
-      if (!persona?.id) {
-        console.warn('Persona sin ID:', persona);
-        continue;
-      }
+  try {
+    // Cargar en paralelo para ser más rápido
+    const promesas = personas
+      .filter(p => p?.id) // Solo personas con ID válido
+      .map(async (persona) => {
+        try {
+          const estatus = await supabaseService.obtenerEstatusMensual(
+            persona.id,
+            anioSeleccionado
+          );
+          return { id: persona.id, estatus: estatus || {} };
+        } catch (error) {
+          console.error(`Error cargando estatus para ${persona.nombre}:`, error);
+          return { id: persona.id, estatus: {} };
+        }
+      });
 
-      try {
-        const estatus = await supabaseService.obtenerEstatusMensual(
-          persona.id,
-          anioSeleccionado
-        );
-        estatusMap[persona.id] = estatus || {};
-      } catch (error) {
-        console.error(`Error cargando estatus para ${persona.nombre}:`, error);
-        estatusMap[persona.id] = {};
-      }
-    }
+    const resultados = await Promise.all(promesas);
+    
+    resultados.forEach(({ id, estatus }) => {
+      estatusMap[id] = estatus;
+    });
 
     setEstatusPorPersona(estatusMap);
+  } catch (error) {
+    console.error('Error general cargando estatus:', error);
+    // Establecer estatus vacío para todas las personas
+    personas.forEach(p => {
+      if (p?.id) estatusMap[p.id] = {};
+    });
+    setEstatusPorPersona(estatusMap);
+  } finally {
     setCargandoEstatus(false);
-  };
+  }
+};
 
   const handleToggleEstatus = async (persona, mes) => {
     if (!persona?.id) {

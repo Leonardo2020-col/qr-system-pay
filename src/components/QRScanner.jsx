@@ -1,114 +1,95 @@
 // src/components/QRScanner.jsx
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Html5QrcodeScanner } from 'html5-qrcode';
+import { Html5Qrcode } from 'html5-qrcode';
 import { Camera, AlertCircle } from 'lucide-react';
 
 const QRScanner = ({ onScan, onError }) => {
-  const scannerRef = useRef(null);
-  const html5QrcodeScannerRef = useRef(null);
-  const [permisoDenegado, setPermisoDenegado] = useState(false);
-  const [iniciando, setIniciando] = useState(true);
+  const [error, setError] = useState(null);
+  const [escaneando, setEscaneando] = useState(false);
+  const html5QrcodeRef = useRef(null);
 
   useEffect(() => {
-    if (!scannerRef.current) return;
+    let isActive = true;
 
     const iniciarScanner = async () => {
       try {
-        // Verificar permisos de cámara primero
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        stream.getTracks().forEach(track => track.stop());
-
+        // Crear instancia del escáner
+        html5QrcodeRef.current = new Html5Qrcode("qr-reader");
+        
+        // Configuración del escáner
         const config = {
           fps: 10,
           qrbox: { width: 250, height: 250 },
-          aspectRatio: 1.0,
-          rememberLastUsedCamera: true,
-          showTorchButtonIfSupported: true,
         };
 
-        html5QrcodeScannerRef.current = new Html5QrcodeScanner(
-          'qr-reader',
+        // Iniciar el escáner
+        await html5QrcodeRef.current.start(
+          { facingMode: "environment" }, // Usar cámara trasera
           config,
-          false
-        );
-
-        html5QrcodeScannerRef.current.render(
           (decodedText) => {
-            console.log('✅ QR escaneado:', decodedText);
-            html5QrcodeScannerRef.current?.clear().catch(err => {
-              console.warn('Error limpiando escáner:', err);
-            });
-            onScan?.(decodedText);
+            if (isActive) {
+              console.log("✅ QR escaneado:", decodedText);
+              detenerScanner();
+              onScan?.(decodedText);
+            }
           },
-          (error) => {
-            // Errores normales del escaneo continuo - no mostrar
+          (errorMessage) => {
+            // Errores normales del escaneo continuo - ignorar
           }
         );
 
-        setIniciando(false);
-      } catch (error) {
-        console.error('❌ Error accediendo a la cámara:', error);
-        setPermisoDenegado(true);
-        setIniciando(false);
-        onError?.(error);
+        setEscaneando(true);
+      } catch (err) {
+        console.error("❌ Error al iniciar el escáner:", err);
+        setError(err.message || "No se pudo acceder a la cámara");
+        onError?.(err);
+      }
+    };
+
+    const detenerScanner = () => {
+      if (html5QrcodeRef.current && escaneando) {
+        html5QrcodeRef.current.stop().then(() => {
+          console.log("🛑 Escáner detenido");
+        }).catch((err) => {
+          console.error("Error al detener el escáner:", err);
+        });
       }
     };
 
     iniciarScanner();
 
+    // Cleanup
     return () => {
-      if (html5QrcodeScannerRef.current) {
-        html5QrcodeScannerRef.current.clear().catch((error) => {
-          console.error('Error limpiando escáner:', error);
-        });
-      }
+      isActive = false;
+      detenerScanner();
     };
-  }, [onScan, onError]);
+  }, []);
 
-  if (permisoDenegado) {
+  if (error) {
     return (
       <div className="w-full max-w-md mx-auto p-8 bg-red-50 border-2 border-red-200 rounded-lg">
         <div className="flex flex-col items-center gap-4 text-center">
           <AlertCircle size={64} className="text-red-500" />
           <h3 className="text-xl font-bold text-red-800">
-            Permiso de Cámara Denegado
+            Error al acceder a la cámara
           </h3>
-          <p className="text-sm text-red-700">
-            Para escanear códigos QR, necesitamos acceso a tu cámara.
-          </p>
-          <div className="text-xs text-red-600 mt-2">
-            <p className="font-semibold mb-2">Cómo habilitar la cámara:</p>
-            <ol className="text-left list-decimal list-inside space-y-1">
-              <li>Ve a la configuración de tu navegador</li>
-              <li>Busca "Permisos" o "Privacidad"</li>
-              <li>Encuentra "Cámara"</li>
-              <li>Permite el acceso para este sitio</li>
-              <li>Recarga la página</li>
-            </ol>
+          <p className="text-sm text-red-700">{error}</p>
+          <div className="text-xs text-red-600 mt-2 text-left bg-white p-4 rounded">
+            <p className="font-semibold mb-2">Posibles soluciones:</p>
+            <ul className="list-disc list-inside space-y-1">
+              <li>Asegúrate de dar permiso de cámara</li>
+              <li>Verifica que ninguna otra app esté usando la cámara</li>
+              <li>Recarga la página y vuelve a intentar</li>
+              <li>Prueba con un navegador diferente (Chrome recomendado)</li>
+            </ul>
           </div>
           <button
             onClick={() => window.location.reload()}
-            className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
+            className="mt-4 px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition font-medium"
           >
             Recargar Página
           </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (iniciando) {
-    return (
-      <div className="w-full max-w-md mx-auto p-8 bg-indigo-50 border-2 border-indigo-200 rounded-lg">
-        <div className="flex flex-col items-center gap-4 text-center">
-          <Camera size={64} className="text-indigo-500 animate-pulse" />
-          <h3 className="text-xl font-bold text-indigo-800">
-            Iniciando cámara...
-          </h3>
-          <p className="text-sm text-indigo-700">
-            Por favor, espera un momento
-          </p>
         </div>
       </div>
     );
@@ -118,29 +99,17 @@ const QRScanner = ({ onScan, onError }) => {
     <div className="w-full max-w-md mx-auto">
       <div 
         id="qr-reader" 
-        ref={scannerRef}
-        className="rounded-lg overflow-hidden shadow-lg"
+        className="rounded-lg overflow-hidden shadow-lg border-4 border-indigo-200"
+        style={{ minHeight: '300px' }}
       />
-      <style>{`
-        #qr-reader {
-          border: none !important;
-        }
-        #qr-reader__dashboard_section {
-          display: none !important;
-        }
-        #qr-reader__camera_selection {
-          margin: 10px 0 !important;
-        }
-        #qr-reader video {
-          border-radius: 8px !important;
-        }
-        #qr-reader__scan_region {
-          border: 2px solid #6366f1 !important;
-        }
-      `}</style>
-      <p className="text-center mt-4 text-sm text-gray-600">
-        📱 Coloca el código QR dentro del marco
-      </p>
+      <div className="mt-4 p-4 bg-indigo-50 rounded-lg border border-indigo-200">
+        <p className="text-sm text-indigo-800 text-center font-medium">
+          📱 Apunta la cámara al código QR
+        </p>
+        <p className="text-xs text-indigo-600 text-center mt-2">
+          El escaneo es automático
+        </p>
+      </div>
     </div>
   );
 };
