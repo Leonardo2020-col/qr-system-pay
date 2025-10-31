@@ -1,6 +1,6 @@
 // src/services/supabaseService.js
 
-import { supabase } from '../config/supabaseClient';
+import { supabase } from '../config/supabaseConfig';
 
 const supabaseService = {
   // Obtener todas las personas
