@@ -1,3 +1,4 @@
+// src/components/QRDisplay.jsx
 
 import React from 'react';
 import { CheckCircle, XCircle, QrCode, Download } from 'lucide-react';
@@ -33,9 +34,9 @@ const QRDisplay = ({ qrUrl, persona, empadronado }) => {
       <div className="bg-gradient-to-r from-indigo-50 to-blue-50 p-5 rounded-xl">
         {/* Foto y nombre */}
         <div className="flex items-center gap-4 mb-4 pb-4 border-b border-indigo-200">
-          {persona.foto && (
+          {persona.foto_url && (
             <img 
-              src={persona.foto} 
+              src={persona.foto_url} 
               alt={persona.nombre}
               className="w-16 h-16 rounded-full object-cover border-4 border-white shadow-md"
               onError={(e) => {
@@ -52,22 +53,12 @@ const QRDisplay = ({ qrUrl, persona, empadronado }) => {
         </div>
         
         <div className="space-y-2 text-sm text-gray-700">
-          {persona.email && (
+          {persona.asociacion && (
             <div className="flex justify-between">
-              <span className="text-gray-600">Email:</span>
-              <span className="font-semibold">{persona.email}</span>
+              <span className="text-gray-600">Asociación:</span>
+              <span className="font-semibold">{persona.asociacion}</span>
             </div>
           )}
-          
-          <div className="flex justify-between">
-            <span className="text-gray-600">Teléfono:</span>
-            <span className="font-semibold">{persona.telefono}</span>
-          </div>
-          
-          <div className="flex justify-between">
-            <span className="text-gray-600">Monto:</span>
-            <span className="font-semibold">S/ {parseFloat(persona.monto || 0).toFixed(2)}</span>
-          </div>
         </div>
       </div>
 
