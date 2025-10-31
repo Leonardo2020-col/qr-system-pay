@@ -171,13 +171,13 @@ const supabaseService = {
     const filePath = `fotos/${fileName}`;
 
     const { error: uploadError } = await supabase.storage
-      .from('personas-fotos')
+      .from('fotos-personas')
       .upload(filePath, file);
 
     if (uploadError) throw uploadError;
 
     const { data } = supabase.storage
-      .from('personas-fotos')
+      .from('fotos-personas')
       .getPublicUrl(filePath);
 
     return data.publicUrl;
