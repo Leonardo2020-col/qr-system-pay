@@ -23,23 +23,29 @@ class GoogleSheetsSync {
 
       const initGapi = () => {
         if (typeof window.gapi === 'undefined') {
+          console.log('⏳ Esperando carga de gapi...');
           setTimeout(initGapi, 100);
           return;
         }
 
+        console.log('✅ window.gapi disponible');
+
         window.gapi.load('client', async () => {
           try {
+            console.log('🔧 Inicializando gapi.client...');
+            
             await window.gapi.client.init({
               apiKey: GOOGLE_CONFIG.apiKey,
             });
 
+            console.log('📚 Cargando Google Sheets API v4...');
             await window.gapi.client.load('sheets', 'v4');
             
             console.log('✅ Google Sheets API cargada');
 
             this.initTokenClient();
             this.isInitialized = true;
-            console.log('✅ Google Sheets Sync inicializado');
+            console.log('✅ Google Sheets Sync inicializado completamente');
             resolve(true);
           } catch (error) {
             console.error('❌ Error inicializando Google Sheets:', error);
@@ -54,29 +60,47 @@ class GoogleSheetsSync {
 
   initTokenClient() {
     if (typeof window.google === 'undefined') {
+      console.log('⏳ Esperando carga de google.accounts...');
       setTimeout(() => this.initTokenClient(), 100);
       return;
     }
 
     try {
+      console.log('🔧 Configurando token client...');
+      
       this.tokenClient = window.google.accounts.oauth2.initTokenClient({
         client_id: GOOGLE_CONFIG.clientId,
         scope: GOOGLE_CONFIG.scope,
         callback: (response) => {
+          console.log('📥 Respuesta de autenticación recibida:', response);
+          
           if (response.error) {
-            console.error('❌ Error en autenticación:', response);
+            console.error('❌ Error en autenticación:', response.error);
+            alert(`Error de autenticación: ${response.error}`);
             return;
           }
+
+          if (!response.access_token) {
+            console.error('❌ No se recibió access_token');
+            alert('No se recibió token de acceso de Google');
+            return;
+          }
+
           this.accessToken = response.access_token;
           this.isSignedIn = true;
+          
+          console.log('🔑 Token recibido:', this.accessToken.substring(0, 20) + '...');
           
           if (window.gapi?.client) {
             window.gapi.client.setToken({
               access_token: this.accessToken,
             });
+            console.log('✅ Token configurado en gapi.client');
+          } else {
+            console.error('❌ gapi.client no disponible para setToken');
           }
           
-          console.log('✅ Autenticado con Google');
+          console.log('✅ Autenticación completada exitosamente');
         },
       });
       
@@ -88,26 +112,36 @@ class GoogleSheetsSync {
 
   signIn() {
     return new Promise((resolve, reject) => {
+      console.log('🔐 Iniciando proceso de sign in...');
+      
       if (!this.enabled) {
-        reject(new Error('Google Sheets no está configurado'));
+        const error = 'Google Sheets no está configurado';
+        console.error('❌', error);
+        reject(new Error(error));
         return;
       }
 
       if (!this.isInitialized) {
-        reject(new Error('Google Sheets no inicializado'));
+        const error = 'Google Sheets no inicializado';
+        console.error('❌', error);
+        reject(new Error(error));
         return;
       }
 
       if (!this.tokenClient) {
-        reject(new Error('Token client no disponible'));
+        const error = 'Token client no disponible';
+        console.error('❌', error);
+        reject(new Error(error));
         return;
       }
 
-      console.log('🔐 Solicitando autenticación...');
+      console.log('🔐 Solicitando autorización de usuario...');
 
       const originalCallback = this.tokenClient.callback;
       
       this.tokenClient.callback = (response) => {
+        console.log('📥 Callback ejecutado con respuesta');
+        
         if (response.error) {
           console.error('❌ Error de autenticación:', response);
           this.tokenClient.callback = originalCallback;
@@ -115,25 +149,40 @@ class GoogleSheetsSync {
           return;
         }
 
+        if (!response.access_token) {
+          console.error('❌ No hay access_token en respuesta');
+          this.tokenClient.callback = originalCallback;
+          reject(new Error('No access token received'));
+          return;
+        }
+
         this.accessToken = response.access_token;
         this.isSignedIn = true;
         
+        console.log('🔑 Access token guardado:', this.accessToken.substring(0, 20) + '...');
+        
         if (window.gapi?.client) {
-          window.gapi.client.setToken({
-            access_token: this.accessToken,
-          });
-          console.log('✅ Token configurado en gapi.client');
+          try {
+            window.gapi.client.setToken({
+              access_token: this.accessToken,
+            });
+            console.log('✅ Token configurado en gapi.client correctamente');
+          } catch (err) {
+            console.error('❌ Error al configurar token en gapi.client:', err);
+          }
         }
 
-        console.log('✅ Autenticación exitosa');
+        console.log('✅ Autenticación exitosa - resolviendo promesa');
         this.tokenClient.callback = originalCallback;
         resolve(true);
       };
 
       try {
+        console.log('🚀 Ejecutando requestAccessToken...');
         this.tokenClient.requestAccessToken({ 
-          prompt: 'select_account' 
+          prompt: '' // Usar '' en lugar de 'select_account' para no forzar selección
         });
+        console.log('✅ requestAccessToken ejecutado');
       } catch (error) {
         console.error('❌ Error solicitando token:', error);
         this.tokenClient.callback = originalCallback;
@@ -143,6 +192,8 @@ class GoogleSheetsSync {
   }
 
   signOut() {
+    console.log('🚪 Cerrando sesión...');
+    
     if (this.accessToken && window.google?.accounts?.oauth2) {
       try {
         window.google.accounts.oauth2.revoke(this.accessToken, () => {
@@ -164,7 +215,9 @@ class GoogleSheetsSync {
   }
 
   isAuthenticated() {
-    return this.isSignedIn && this.accessToken !== null;
+    const authenticated = this.isSignedIn && this.accessToken !== null;
+    console.log('🔍 Verificando autenticación:', authenticated);
+    return authenticated;
   }
 
   async sincronizarAGoogleSheets(personas) {
