@@ -1,292 +1,196 @@
-// src/components/PersonaForm.jsx
+// src/components/PersonaForm.js
 
 import React, { useState } from 'react';
-import { Upload, X, Camera, CheckSquare } from 'lucide-react';
-import { validarPersona } from '../utils/validators';
-import { comprimirImagen, validarTamañoImagen } from '../utils/imageUtils';
+import { Upload, X } from 'lucide-react';
+import supabaseService from '../services/supabaseService';
 
 const PersonaForm = ({ onAgregar, onCancelar }) => {
-  const [persona, setPersona] = useState({
-    nombre: '',
-    dni: '',
-    email: '',
-    telefono: '',
-    empadronado: false,
-    monto: '',
-    foto: '',
-  });
+  const [nombre, setNombre] = useState('');
+  const [dni, setDNI] = useState('');
+  const [asociacion, setAsociacion] = useState('');
+  const [empadronado, setEmpadronado] = useState(false);
+  const [foto, setFoto] = useState(null);
+  const [subiendoFoto, setSubiendoFoto] = useState(false);
+  const [previsualizacion, setPrevisualizacion] = useState(null);
 
-  const [errores, setErrores] = useState({});
-  const [previsualizacion, setPrevisualizacion] = useState('');
-  const [subiendo, setSubiendo] = useState(false);
-
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setPersona({ 
-      ...persona, 
-      [name]: type === 'checkbox' ? checked : value 
-    });
-    
-    if (errores[name]) {
-      setErrores({ ...errores, [name]: null });
-    }
-  };
-
-  const handleImagenChange = async (e) => {
+  const handleFotoChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      if (file.size > 2000000) {
-        alert('La imagen es muy grande. Por favor, usa una imagen menor a 2MB.');
+      if (file.size > 5 * 1024 * 1024) {
+        alert('La imagen no debe superar los 5MB');
         return;
       }
 
-      if (!file.type.startsWith('image/')) {
-        alert('Por favor selecciona una imagen válida.');
-        return;
-      }
-
-      setSubiendo(true);
-
-      try {
-        const base64Comprimido = await comprimirImagen(file, 150, 0.6);
-        
-        if (!validarTamañoImagen(base64Comprimido, 100)) {
-          alert('La imagen sigue siendo muy grande después de la compresión. Intenta con una imagen más pequeña.');
-          setSubiendo(false);
-          return;
-        }
-        
-        setPersona({ ...persona, foto: base64Comprimido });
-        setPrevisualizacion(base64Comprimido);
-        setSubiendo(false);
-      } catch (error) {
-        console.error('Error procesando imagen:', error);
-        alert('Error al procesar la imagen');
-        setSubiendo(false);
-      }
+      setFoto(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPrevisualizacion(reader.result);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
-  const handleTomarFoto = () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.capture = 'environment';
-    input.onchange = (e) => handleImagenChange(e);
-    input.click();
-  };
-
-  const handleEliminarImagen = () => {
-    setPersona({ ...persona, foto: '' });
-    setPrevisualizacion('');
-  };
-
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    const { valido, errores: nuevosErrores } = validarPersona(persona);
-    
-    if (!valido) {
-      setErrores(nuevosErrores);
+
+    if (!nombre || !dni) {
+      alert('Por favor completa los campos obligatorios');
       return;
     }
 
-    onAgregar(persona);
-    
-    // Resetear formulario
-    setPersona({
-      nombre: '',
-      dni: '',
-      email: '',
-      telefono: '',
-      empadronado: false,
-      monto: '',
-      foto: '',
-    });
-    setPrevisualizacion('');
-    setErrores({});
+    try {
+      let fotoUrl = null;
+
+      if (foto) {
+        setSubiendoFoto(true);
+        fotoUrl = await supabaseService.subirFoto(foto, dni);
+      }
+
+      const nuevaPersona = {
+        nombre,
+        dni,
+        asociacion: asociacion || 'Sin asociación',
+        empadronado,
+        foto_url: fotoUrl,
+      };
+
+      await onAgregar(nuevaPersona);
+      
+      setNombre('');
+      setDNI('');
+      setAsociacion('');
+      setEmpadronado(false);
+      setFoto(null);
+      setPrevisualizacion(null);
+    } catch (error) {
+      console.error('Error al agregar persona:', error);
+      alert('Error al agregar persona. Intenta de nuevo.');
+    } finally {
+      setSubiendoFoto(false);
+    }
   };
-  
+
   return (
-    <div className="bg-gray-50 p-6 rounded-xl">
-      <h3 className="text-lg font-semibold mb-4">Nueva Persona</h3>
-      <form onSubmit={handleSubmit}>
-        {/* Sección de foto */}
-        <div className="mb-6">
+    <form onSubmit={handleSubmit} className="bg-gray-50 p-4 md:p-6 rounded-xl border border-gray-200">
+      <h3 className="text-lg md:text-xl font-bold mb-4 text-gray-800">Nueva Persona</h3>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Foto del Cliente (Opcional)
+            Nombre Completo <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="text"
+            value={nombre}
+            onChange={(e) => setNombre(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            placeholder="Ej: Juan Pérez"
+            required
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            DNI <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="text"
+            value={dni}
+            onChange={(e) => setDNI(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            placeholder="Ej: 12345678"
+            maxLength="8"
+            required
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Asociación
+          </label>
+          <input
+            type="text"
+            value={asociacion}
+            onChange={(e) => setAsociacion(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            placeholder="Ej: Asociación de Comerciantes"
+          />
+        </div>
+
+        <div className="flex items-center">
+          <label className="flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              checked={empadronado}
+              onChange={(e) => setEmpadronado(e.target.checked)}
+              className="w-5 h-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+            />
+            <span className="ml-2 text-sm font-medium text-gray-700">
+              Empadronado
+            </span>
+          </label>
+        </div>
+      </div>
+
+      <div className="mt-4">
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Foto (opcional)
+        </label>
+        <div className="flex items-center gap-4">
+          <input
+            type="file"
+            accept="image/*"
+            onChange={handleFotoChange}
+            className="hidden"
+            id="foto-input"
+          />
+          <label
+            htmlFor="foto-input"
+            className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition"
+          >
+            <Upload size={18} />
+            <span className="text-sm">Subir Foto</span>
           </label>
           
-          {previsualizacion ? (
-            <div className="relative inline-block">
-              <img 
-                src={previsualizacion} 
-                alt="Previsualización" 
-                className="w-32 h-32 rounded-full object-cover border-4 border-indigo-200 shadow-md"
+          {previsualizacion && (
+            <div className="relative">
+              <img
+                src={previsualizacion}
+                alt="Vista previa"
+                className="w-16 h-16 object-cover rounded-lg border-2 border-gray-300"
               />
               <button
                 type="button"
-                onClick={handleEliminarImagen}
-                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition shadow-md"
+                onClick={() => {
+                  setFoto(null);
+                  setPrevisualizacion(null);
+                }}
+                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
               >
-                <X size={16} />
-              </button>
-            </div>
-          ) : (
-            <div className="flex gap-3">
-              <label className="flex flex-col items-center justify-center w-32 h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-indigo-500 hover:bg-indigo-50 transition">
-                <Upload size={32} className="text-gray-400 mb-2" />
-                <span className="text-xs text-gray-500 text-center px-2">Subir imagen</span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImagenChange}
-                  className="hidden"
-                  disabled={subiendo}
-                />
-              </label>
-
-              <button
-                type="button"
-                onClick={handleTomarFoto}
-                disabled={subiendo}
-                className="flex flex-col items-center justify-center w-32 h-32 border-2 border-dashed border-gray-300 rounded-lg hover:border-indigo-500 hover:bg-indigo-50 transition disabled:opacity-50"
-              >
-                <Camera size={32} className="text-gray-400 mb-2" />
-                <span className="text-xs text-gray-500 text-center px-2">Tomar foto</span>
+                <X size={14} />
               </button>
             </div>
           )}
-          
-          {subiendo && (
-            <p className="text-sm text-indigo-600 mt-2">Procesando imagen...</p>
-          )}
         </div>
+      </div>
 
-        {/* Campos del formulario */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <input
-              type="text"
-              name="nombre"
-              placeholder="Nombre completo"
-              value={persona.nombre}
-              onChange={handleChange}
-              className={`w-full px-4 py-2 border rounded-lg outline-none transition ${
-                errores.nombre ? 'border-red-500' : 'border-gray-300 focus:border-indigo-500'
-              }`}
-            />
-            {errores.nombre && (
-              <p className="text-red-500 text-xs mt-1">{errores.nombre}</p>
-            )}
-          </div>
-
-          <div>
-            <input
-              type="text"
-              name="dni"
-              placeholder="DNI (8 dígitos)"
-              value={persona.dni}
-              onChange={handleChange}
-              maxLength="8"
-              className={`w-full px-4 py-2 border rounded-lg outline-none transition ${
-                errores.dni ? 'border-red-500' : 'border-gray-300 focus:border-indigo-500'
-              }`}
-            />
-            {errores.dni && (
-              <p className="text-red-500 text-xs mt-1">{errores.dni}</p>
-            )}
-          </div>
-
-          <div>
-            <input
-              type="email"
-              name="email"
-              placeholder="Email (opcional)"
-              value={persona.email}
-              onChange={handleChange}
-              className={`w-full px-4 py-2 border rounded-lg outline-none transition ${
-                errores.email ? 'border-red-500' : 'border-gray-300 focus:border-indigo-500'
-              }`}
-            />
-            {errores.email && (
-              <p className="text-red-500 text-xs mt-1">{errores.email}</p>
-            )}
-          </div>
-
-          <div>
-            <input
-              type="tel"
-              name="telefono"
-              placeholder="Teléfono (9 dígitos)"
-              value={persona.telefono}
-              onChange={handleChange}
-              maxLength="9"
-              className={`w-full px-4 py-2 border rounded-lg outline-none transition ${
-                errores.telefono ? 'border-red-500' : 'border-gray-300 focus:border-indigo-500'
-              }`}
-            />
-            {errores.telefono && (
-              <p className="text-red-500 text-xs mt-1">{errores.telefono}</p>
-            )}
-          </div>
-
-          <div>
-            <input
-              type="number"
-              name="monto"
-              placeholder="Monto (S/)"
-              value={persona.monto}
-              onChange={handleChange}
-              step="0.01"
-              min="0"
-              className={`w-full px-4 py-2 border rounded-lg outline-none transition ${
-                errores.monto ? 'border-red-500' : 'border-gray-300 focus:border-indigo-500'
-              }`}
-            />
-            {errores.monto && (
-              <p className="text-red-500 text-xs mt-1">{errores.monto}</p>
-            )}
-          </div>
-
-          {/* Checkbox de Empadronado */}
-          <div className="flex items-center">
-            <label className="flex items-center gap-3 cursor-pointer bg-white px-4 py-2 border border-gray-300 rounded-lg hover:border-indigo-500 transition w-full">
-              <input
-                type="checkbox"
-                name="empadronado"
-                checked={persona.empadronado}
-                onChange={handleChange}
-                className="w-5 h-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-              />
-              <div className="flex items-center gap-2">
-                <CheckSquare size={20} className={persona.empadronado ? 'text-green-600' : 'text-gray-400'} />
-                <span className="text-sm font-medium text-gray-700">
-                  {persona.empadronado ? 'Empadronado' : 'No empadronado'}
-                </span>
-              </div>
-            </label>
-          </div>
-        </div>
-
-        <div className="flex gap-3 mt-6">
-          <button
-            type="submit"
-            disabled={subiendo}
-            className="flex-1 bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {subiendo ? 'Procesando...' : 'Guardar Persona'}
-          </button>
-          <button
-            type="button"
-            onClick={onCancelar}
-            className="px-6 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition font-medium"
-          >
-            Cancelar
-          </button>
-        </div>
-      </form>
-    </div>
+      <div className="flex gap-3 mt-6">
+        <button
+          type="submit"
+          disabled={subiendoFoto}
+          className="flex-1 bg-indigo-600 text-white py-2 px-4 rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 font-medium"
+        >
+          {subiendoFoto ? 'Subiendo foto...' : 'Agregar'}
+        </button>
+        <button
+          type="button"
+          onClick={onCancelar}
+          className="flex-1 bg-gray-200 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-300 transition font-medium"
+        >
+          Cancelar
+        </button>
+      </div>
+    </form>
   );
 };
 

@@ -191,10 +191,8 @@ class GoogleSheetsSync {
       const valores = personas.map(p => [
         p.nombre || '',
         p.dni || '',
-        p.email || '',
-        p.telefono || '',
+        p.asociacion || 'Sin asociación',
         p.empadronado ? 'SÍ' : 'NO',
-        parseFloat(p.monto || 0).toFixed(2),
         p.foto_url || '',
         p.created_at ? new Date(p.created_at).toLocaleDateString('es-PE') : ''
       ]);
@@ -203,14 +201,14 @@ class GoogleSheetsSync {
 
       await window.gapi.client.sheets.spreadsheets.values.clear({
         spreadsheetId: GOOGLE_CONFIG.spreadsheetId,
-        range: `${SHEET_NAME}!A2:H1000`,
+        range: `${SHEET_NAME}!A2:F1000`,
       });
 
       console.log('🧹 Datos anteriores limpiados');
 
       const response = await window.gapi.client.sheets.spreadsheets.values.update({
         spreadsheetId: GOOGLE_CONFIG.spreadsheetId,
-        range: `${SHEET_NAME}!A2:H${valores.length + 1}`,
+        range: `${SHEET_NAME}!A2:F${valores.length + 1}`,
         valueInputOption: 'USER_ENTERED',
         resource: { values: valores },
       });
@@ -229,7 +227,7 @@ class GoogleSheetsSync {
     try {
       const response = await window.gapi.client.sheets.spreadsheets.values.get({
         spreadsheetId: GOOGLE_CONFIG.spreadsheetId,
-        range: `${SHEET_NAME}!A1:H1`,
+        range: `${SHEET_NAME}!A1:F1`,
       });
 
       const hasHeaders = response.result.values && response.result.values.length > 0;
@@ -252,13 +250,13 @@ class GoogleSheetsSync {
 
   async crearHeaders() {
     const headers = [
-      ['Nombre', 'DNI', 'Email', 'Teléfono', 'Empadronado', 'Monto', 'Foto URL', 'Fecha Registro']
+      ['Nombre', 'DNI', 'Asociación', 'Empadronado', 'Foto URL', 'Fecha Registro']
     ];
 
     try {
       await window.gapi.client.sheets.spreadsheets.values.update({
         spreadsheetId: GOOGLE_CONFIG.spreadsheetId,
-        range: `${SHEET_NAME}!A1:H1`,
+        range: `${SHEET_NAME}!A1:F1`,
         valueInputOption: 'USER_ENTERED',
         resource: { values: headers },
       });
@@ -293,6 +291,5 @@ class GoogleSheetsSync {
   }
 }
 
-// ✅ CRÍTICO: Esta línea debe estar AL FINAL del archivo
 const googleSheetsSync = new GoogleSheetsSync();
 export default googleSheetsSync;

@@ -12,7 +12,6 @@ export const useHybridData = () => {
   const [googleSheetsAuth, setGoogleSheetsAuth] = useState(false);
   const [sincronizando, setSincronizando] = useState(false);
 
-  // Inicializar Google Sheets al montar
   useEffect(() => {
     const initGoogle = async () => {
       const initialized = await googleSheetsSync.initialize();
@@ -24,7 +23,6 @@ export const useHybridData = () => {
     initGoogle();
   }, []);
 
-  // Cargar personas desde Supabase
   const cargarPersonas = useCallback(async () => {
     try {
       setLoading(true);
@@ -35,10 +33,8 @@ export const useHybridData = () => {
         id: p.id,
         nombre: p.nombre,
         dni: p.dni,
-        email: p.email || '',
-        telefono: p.telefono,
+        asociacion: p.asociacion || 'Sin asociación',
         empadronado: p.empadronado,
-        monto: parseFloat(p.monto),
         foto: p.foto_url || '',
         foto_url: p.foto_url || '',
         created_at: p.created_at,
@@ -55,11 +51,9 @@ export const useHybridData = () => {
     }
   }, []);
 
-  // Sincronizar con Google Sheets
   const sincronizarConGoogleSheets = useCallback(async (personasData) => {
     console.log('🔄 Iniciando sincronización desde hook...');
     
-    // ✅ Verificar estado actualizado
     const estaAutenticado = googleSheetsSync.isAuthenticated();
     console.log('🔍 Estado de autenticación:', estaAutenticado);
     
@@ -85,9 +79,8 @@ export const useHybridData = () => {
     } finally {
       setSincronizando(false);
     }
-  }, [personas]); // ✅ Removido googleSheetsAuth de dependencias
+  }, [personas]);
 
-  // Agregar persona
   const agregarPersona = useCallback(async (persona) => {
     try {
       setLoading(true);
@@ -95,7 +88,6 @@ export const useHybridData = () => {
       await supabaseService.agregarPersona(persona);
       const personasActualizadas = await cargarPersonas();
       
-      // Sincronizar automáticamente si está conectado
       if (googleSheetsSync.isAuthenticated()) {
         try {
           await sincronizarConGoogleSheets(personasActualizadas);
@@ -114,7 +106,6 @@ export const useHybridData = () => {
     }
   }, [cargarPersonas, sincronizarConGoogleSheets]);
 
-  // Actualizar persona
   const actualizarPersona = useCallback(async (id, persona) => {
     try {
       setLoading(true);
@@ -122,7 +113,6 @@ export const useHybridData = () => {
       await supabaseService.actualizarPersona(id, persona);
       const personasActualizadas = await cargarPersonas();
       
-      // Sincronizar automáticamente si está conectado
       if (googleSheetsSync.isAuthenticated()) {
         try {
           await sincronizarConGoogleSheets(personasActualizadas);
@@ -141,7 +131,6 @@ export const useHybridData = () => {
     }
   }, [cargarPersonas, sincronizarConGoogleSheets]);
 
-  // Eliminar persona
   const eliminarPersona = useCallback(async (id) => {
     try {
       setLoading(true);
@@ -149,7 +138,6 @@ export const useHybridData = () => {
       await supabaseService.eliminarPersona(id);
       const personasActualizadas = await cargarPersonas();
       
-      // Sincronizar automáticamente si está conectado
       if (googleSheetsSync.isAuthenticated()) {
         try {
           await sincronizarConGoogleSheets(personasActualizadas);
@@ -168,20 +156,17 @@ export const useHybridData = () => {
     }
   }, [cargarPersonas, sincronizarConGoogleSheets]);
 
-  // Conectar con Google Sheets
   const conectarGoogleSheets = useCallback(async () => {
     try {
       setLoading(true);
-      setError(null); // ✅ Limpiar errores previos
+      setError(null);
       
       console.log('🔐 Iniciando conexión con Google Sheets...');
       
       await googleSheetsSync.signIn();
       
-      // ✅ Esperar un poco para que el token se configure
       await new Promise(resolve => setTimeout(resolve, 500));
       
-      // ✅ Verificar que realmente está autenticado
       const estaAutenticado = googleSheetsSync.isAuthenticated();
       console.log('✅ Estado después de signIn:', estaAutenticado);
       
@@ -191,7 +176,6 @@ export const useHybridData = () => {
         throw new Error('La autenticación no se completó correctamente');
       }
       
-      // Sincronizar datos actuales
       if (personas.length > 0) {
         console.log('📊 Sincronizando personas existentes...');
         await sincronizarConGoogleSheets(personas);
@@ -202,21 +186,19 @@ export const useHybridData = () => {
       const errorMsg = 'Error al conectar con Google Sheets: ' + err.message;
       setError(errorMsg);
       console.error('❌', errorMsg);
-      setGoogleSheetsAuth(false); // ✅ Asegurar que el estado sea falso si falla
+      setGoogleSheetsAuth(false);
       return false;
     } finally {
       setLoading(false);
     }
   }, [personas, sincronizarConGoogleSheets]);
 
-  // Desconectar Google Sheets
   const desconectarGoogleSheets = useCallback(() => {
     googleSheetsSync.signOut();
     setGoogleSheetsAuth(false);
-    setError(null); // ✅ Limpiar errores al desconectar
+    setError(null);
   }, []);
 
-  // Cargar personas al montar
   useEffect(() => {
     cargarPersonas();
   }, [cargarPersonas]);
