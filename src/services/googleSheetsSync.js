@@ -1,303 +1,42 @@
-// src/services/googleSheetsSync.js
+// src/config/googleConfig.js
 
-import { GOOGLE_CONFIG, SHEET_NAME, GOOGLE_SHEETS_ENABLED } from '../config/googleConfig';
+export const GOOGLE_CONFIG = {
+  clientId: process.env.REACT_APP_GOOGLE_CLIENT_ID || null,
+  apiKey: process.env.REACT_APP_GOOGLE_API_KEY || null,
+  spreadsheetId: process.env.REACT_APP_GOOGLE_SPREADSHEET_ID || null,
+  scope: 'https://www.googleapis.com/auth/spreadsheets',
+  // ✅ Removido discoveryDocs - lo cargamos manualmente en el servicio
+};
 
-class GoogleSheetsSync {
-  constructor() {
-    this.isInitialized = false;
-    this.isSignedIn = false;
-    this.accessToken = null;
-    this.tokenClient = null;
-    this.enabled = GOOGLE_SHEETS_ENABLED;
-  }
+// ✅ Verificar si Google Sheets está configurado
+export const GOOGLE_SHEETS_ENABLED = !!(
+  GOOGLE_CONFIG.clientId && 
+  GOOGLE_CONFIG.apiKey && 
+  GOOGLE_CONFIG.spreadsheetId
+);
 
-  // Inicializar Google API
-  initialize() {
-    return new Promise((resolve) => {
-      // ✅ Si no está habilitado, resolver sin hacer nada
-      if (!this.enabled) {
-        console.log('ℹ️ Google Sheets deshabilitado (sin credenciales)');
-        resolve(false);
-        return;
-      }
+export const SHEET_NAME = 'Personas';
 
-      console.log('🔄 Inicializando Google Sheets Sync...');
+export const COLUMNS = {
+  NOMBRE: 'A',
+  DNI: 'B',
+  EMAIL: 'C',
+  TELEFONO: 'D',
+  EMPADRONADO: 'E',
+  MONTO: 'F',
+  FOTO: 'G',
+  FECHA: 'H',
+};
 
-      const initGapi = () => {
-        if (typeof window.gapi === 'undefined') {
-          setTimeout(initGapi, 100);
-          return;
-        }
+export const DATA_RANGE = `${SHEET_NAME}!A2:H`;
 
-        window.gapi.load('client', async () => {
-          try {
-            await window.gapi.client.init({
-              apiKey: GOOGLE_CONFIG.apiKey,
-              discoveryDocs: GOOGLE_CONFIG.discoveryDocs,
-            });
-
-            this.initTokenClient();
-            this.isInitialized = true;
-            console.log('✅ Google Sheets Sync inicializado');
-            resolve(true);
-          } catch (error) {
-            console.error('❌ Error inicializando Google Sheets:', error);
-            resolve(false);
-          }
-        });
-      };
-
-      initGapi();
-    });
-  }
-
-  // Inicializar cliente de tokens
-  initTokenClient() {
-    if (typeof window.google === 'undefined') {
-      setTimeout(() => this.initTokenClient(), 100);
-      return;
-    }
-
-    try {
-      this.tokenClient = window.google.accounts.oauth2.initTokenClient({
-        client_id: GOOGLE_CONFIG.clientId,
-        scope: GOOGLE_CONFIG.scope,
-        callback: (response) => {
-          if (response.error) {
-            console.error('❌ Error en autenticación:', response);
-            return;
-          }
-          this.accessToken = response.access_token;
-          this.isSignedIn = true;
-          
-          if (window.gapi?.client) {
-            window.gapi.client.setToken({
-              access_token: this.accessToken,
-            });
-          }
-          
-          console.log('✅ Autenticado con Google');
-        },
-      });
-      
-      console.log('✅ Token client configurado');
-    } catch (error) {
-      console.error('❌ Error configurando token client:', error);
-    }
-  }
-
-  // Iniciar sesión
-  signIn() {
-    return new Promise((resolve, reject) => {
-      if (!this.enabled) {
-        reject(new Error('Google Sheets no está configurado'));
-        return;
-      }
-
-      if (!this.isInitialized) {
-        reject(new Error('Google Sheets no inicializado'));
-        return;
-      }
-
-      if (!this.tokenClient) {
-        reject(new Error('Token client no disponible'));
-        return;
-      }
-
-      console.log('🔐 Solicitando autenticación...');
-
-      const originalCallback = this.tokenClient.callback;
-      
-      this.tokenClient.callback = (response) => {
-        if (response.error) {
-          console.error('❌ Error de autenticación:', response);
-          this.tokenClient.callback = originalCallback;
-          reject(new Error(response.error));
-          return;
-        }
-
-        this.accessToken = response.access_token;
-        this.isSignedIn = true;
-        
-        if (window.gapi?.client) {
-          window.gapi.client.setToken({
-            access_token: this.accessToken,
-          });
-          console.log('✅ Token configurado en gapi.client');
-        }
-
-        console.log('✅ Autenticación exitosa');
-        this.tokenClient.callback = originalCallback;
-        resolve(true);
-      };
-
-      try {
-        this.tokenClient.requestAccessToken({ 
-          prompt: 'select_account' 
-        });
-      } catch (error) {
-        console.error('❌ Error solicitando token:', error);
-        this.tokenClient.callback = originalCallback;
-        reject(error);
-      }
-    });
-  }
-
-  // Cerrar sesión
-  signOut() {
-    if (this.accessToken && window.google?.accounts?.oauth2) {
-      try {
-        window.google.accounts.oauth2.revoke(this.accessToken, () => {
-          console.log('✅ Token de Google revocado');
-        });
-      } catch (error) {
-        console.error('Error revocando token:', error);
-      }
-    }
-
-    this.accessToken = null;
-    this.isSignedIn = false;
-    
-    if (window.gapi?.client) {
-      window.gapi.client.setToken(null);
-    }
-    
-    console.log('✅ Sesión cerrada');
-  }
-
-  // Verificar estado de autenticación
-  isAuthenticated() {
-    return this.isSignedIn && this.accessToken !== null;
-  }
-
-  // Sincronizar datos de Supabase a Google Sheets
-  async sincronizarAGoogleSheets(personas) {
-    if (!this.enabled) {
-      throw new Error('Google Sheets no está configurado. Agrega las credenciales en .env');
-    }
-
-    console.log('🔄 Iniciando sincronización...');
-    
-    if (!this.isAuthenticated()) {
-      throw new Error('No autenticado con Google Sheets');
-    }
-
-    if (!personas || personas.length === 0) {
-      console.warn('⚠️ No hay personas para sincronizar');
-      return true;
-    }
-
-    try {
-      console.log(`📊 Sincronizando ${personas.length} personas...`);
-      
-      await this.verificarYCrearHeaders();
-
-      const valores = personas.map(p => [
-        p.nombre || '',
-        p.dni || '',
-        p.email || '',
-        p.telefono || '',
-        p.empadronado ? 'SÍ' : 'NO',
-        parseFloat(p.monto || 0).toFixed(2),
-        p.foto_url || '',
-        p.created_at ? new Date(p.created_at).toLocaleDateString('es-PE') : ''
-      ]);
-
-      console.log('📝 Datos preparados:', valores.length, 'filas');
-
-      await window.gapi.client.sheets.spreadsheets.values.clear({
-        spreadsheetId: GOOGLE_CONFIG.spreadsheetId,
-        range: `${SHEET_NAME}!A2:H1000`,
-      });
-
-      console.log('🧹 Datos anteriores limpiados');
-
-      const response = await window.gapi.client.sheets.spreadsheets.values.update({
-        spreadsheetId: GOOGLE_CONFIG.spreadsheetId,
-        range: `${SHEET_NAME}!A2:H${valores.length + 1}`,
-        valueInputOption: 'USER_ENTERED',
-        resource: { values: valores },
-      });
-
-      console.log('✅ Datos escritos:', response.result.updatedRows, 'filas');
-      console.log('✅ Sincronización completada exitosamente');
-      
-      return true;
-    } catch (error) {
-      console.error('❌ Error en sincronización:', error);
-      throw new Error(`Error sincronizando: ${error.message}`);
-    }
-  }
-
-  // Verificar y crear headers si no existen
-  async verificarYCrearHeaders() {
-    try {
-      const response = await window.gapi.client.sheets.spreadsheets.values.get({
-        spreadsheetId: GOOGLE_CONFIG.spreadsheetId,
-        range: `${SHEET_NAME}!A1:H1`,
-      });
-
-      const hasHeaders = response.result.values && response.result.values.length > 0;
-
-      if (!hasHeaders) {
-        console.log('📋 Creando headers...');
-        await this.crearHeaders();
-      } else {
-        console.log('✅ Headers ya existen');
-      }
-    } catch (error) {
-      console.error('❌ Error verificando headers:', error);
-      try {
-        await this.crearHeaders();
-      } catch (createError) {
-        console.error('❌ No se pudieron crear headers:', createError);
-      }
-    }
-  }
-
-  // Crear headers en Google Sheets
-  async crearHeaders() {
-    const headers = [
-      ['Nombre', 'DNI', 'Email', 'Teléfono', 'Empadronado', 'Monto', 'Foto URL', 'Fecha Registro']
-    ];
-
-    try {
-      await window.gapi.client.sheets.spreadsheets.values.update({
-        spreadsheetId: GOOGLE_CONFIG.spreadsheetId,
-        range: `${SHEET_NAME}!A1:H1`,
-        valueInputOption: 'USER_ENTERED',
-        resource: { values: headers },
-      });
-
-      await window.gapi.client.sheets.spreadsheets.batchUpdate({
-        spreadsheetId: GOOGLE_CONFIG.spreadsheetId,
-        resource: {
-          requests: [{
-            repeatCell: {
-              range: {
-                sheetId: 0,
-                startRowIndex: 0,
-                endRowIndex: 1,
-              },
-              cell: {
-                userEnteredFormat: {
-                  textFormat: { bold: true },
-                  backgroundColor: { red: 0.9, green: 0.9, blue: 0.9 }
-                }
-              },
-              fields: 'userEnteredFormat(textFormat,backgroundColor)'
-            }
-          }]
-        }
-      });
-
-      console.log('✅ Headers creados y formateados');
-    } catch (error) {
-      console.error('❌ Error creando headers:', error);
-      throw error;
-    }
-  }
-}
-
-const googleSheetsSync = new GoogleSheetsSync();
-export default googleSheetsSync;
+export const HEADERS = [
+  'Nombre', 
+  'DNI', 
+  'Email', 
+  'Teléfono', 
+  'Empadronado', 
+  'Monto', 
+  'Foto URL', 
+  'Fecha Registro'
+];
