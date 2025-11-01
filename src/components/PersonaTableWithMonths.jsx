@@ -89,13 +89,7 @@ const PersonaTableWithMonths = ({
                 </td>
                 <td className="px-4 py-4">
                   <div className="flex items-center justify-center gap-2">
-                    <button
-  onClick={() => onGenerarQR(persona, persona.empadronado)}
-  className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition"
-  title="Generar QR"
->
-  <QrCode size={18} />
-</button>
+                    
                     <button
                       onClick={() => onVerDetalle(persona)}
                       className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"
