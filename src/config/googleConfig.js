@@ -4,7 +4,7 @@ export const GOOGLE_CONFIG = {
   clientId: process.env.REACT_APP_GOOGLE_CLIENT_ID || null,
   apiKey: process.env.REACT_APP_GOOGLE_API_KEY || null,
   spreadsheetId: process.env.REACT_APP_GOOGLE_SPREADSHEET_ID || null,
-  scope: 'https://www.googleapis.com/auth/spreadsheets',
+  scope: 'https://www.googleapis.com/auth/spreadsheets', // ✅ CORRECTO
 };
 
 export const GOOGLE_SHEETS_ENABLED = !!(

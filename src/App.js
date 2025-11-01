@@ -1,7 +1,7 @@
 // src/App.js
 
 import React, { useState, useEffect } from 'react';
-import { UserPlus, RefreshCw, AlertCircle, QrCode, Cloud, LogIn, LogOut, Calendar } from 'lucide-react';
+import { UserPlus, RefreshCw, AlertCircle, QrCode, Cloud, LogIn, LogOut, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useHybridData } from './hooks/useHybridData';
 import { generarQRCode } from './services/qrService';
 import PersonaTableWithMonths from './components/PersonaTableWithMonths';
@@ -38,13 +38,17 @@ function App() {
   const [mostrarEscaner, setMostrarEscaner] = useState(false);
   const [generandoQR, setGenerandoQR] = useState(false);
   
-  // ✅ Nuevos estados para modales
+  // Estados para modales
   const [mostrarModalMes, setMostrarModalMes] = useState(false);
   const [mostrarModalEditar, setMostrarModalEditar] = useState(false);
   const [personaParaModal, setPersonaParaModal] = useState(null);
   const [anioSeleccionado, setAnioSeleccionado] = useState(new Date().getFullYear());
 
-  // ✅ Diagnóstico de Google Sheets (DENTRO del componente)
+  // ✅ Estados de paginación
+  const [paginaActual, setPaginaActual] = useState(1);
+  const PERSONAS_POR_PAGINA = 15;
+
+  // Diagnóstico de Google Sheets
   useEffect(() => {
     const timer = setTimeout(() => {
       diagnosticarGoogleSheets();
@@ -117,11 +121,47 @@ function App() {
     }
   };
 
+  // ✅ Filtrar personas
   const personasFiltradas = personas.filter(
     (p) =>
       p.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
       p.dni.includes(busqueda)
   );
+
+  // ✅ Calcular paginación
+  const totalPaginas = Math.ceil(personasFiltradas.length / PERSONAS_POR_PAGINA);
+  const indiceInicio = (paginaActual - 1) * PERSONAS_POR_PAGINA;
+  const indiceFin = indiceInicio + PERSONAS_POR_PAGINA;
+  const personasPaginadas = personasFiltradas.slice(indiceInicio, indiceFin);
+
+  // ✅ Resetear a página 1 cuando cambie la búsqueda
+  useEffect(() => {
+    setPaginaActual(1);
+  }, [busqueda]);
+
+  // ✅ Generar números de página para mostrar
+  const generarNumerosPagina = () => {
+    const paginas = [];
+    const maxPaginasVisibles = 5;
+    
+    if (totalPaginas <= maxPaginasVisibles) {
+      // Mostrar todas las páginas si son pocas
+      for (let i = 1; i <= totalPaginas; i++) {
+        paginas.push(i);
+      }
+    } else {
+      // Mostrar páginas con ellipsis
+      if (paginaActual <= 3) {
+        paginas.push(1, 2, 3, 4, '...', totalPaginas);
+      } else if (paginaActual >= totalPaginas - 2) {
+        paginas.push(1, '...', totalPaginas - 3, totalPaginas - 2, totalPaginas - 1, totalPaginas);
+      } else {
+        paginas.push(1, '...', paginaActual - 1, paginaActual, paginaActual + 1, '...', totalPaginas);
+      }
+    }
+    
+    return paginas;
+  };
 
   if (mostrarEscaner) {
     return <QRScannerApp onVolver={() => setMostrarEscaner(false)} />;
@@ -230,7 +270,7 @@ function App() {
           <div className="lg:col-span-2 bg-white rounded-2xl shadow-xl p-4 md:p-6 overflow-hidden">
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4 md:mb-6">
               <h2 className="text-lg md:text-xl lg:text-2xl font-bold text-gray-800">
-                Lista de Personas ({personas.length})
+                Lista de Personas ({personasFiltradas.length})
               </h2>
               <button
                 onClick={() => setMostrarFormulario(!mostrarFormulario)}
@@ -254,24 +294,85 @@ function App() {
               <SearchBar busqueda={busqueda} onBusquedaChange={setBusqueda} />
             </div>
 
+            {/* ✅ Info de paginación */}
+            {personasFiltradas.length > 0 && (
+              <div className="mb-4 bg-gradient-to-r from-indigo-50 to-blue-50 p-3 rounded-lg border border-indigo-200">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="font-medium text-gray-700">
+                    Página {paginaActual} de {totalPaginas}
+                  </span>
+                  <span className="text-gray-600">
+                    Mostrando {indiceInicio + 1}-{Math.min(indiceFin, personasFiltradas.length)} de {personasFiltradas.length}
+                  </span>
+                </div>
+              </div>
+            )}
+
             {loading && !mostrarFormulario ? (
               <div className="text-center py-8 md:py-12">
                 <RefreshCw className="animate-spin mx-auto mb-4 text-indigo-600" size={40} />
                 <p className="text-gray-600 text-sm md:text-base">Cargando datos...</p>
               </div>
             ) : (
-              <div className="overflow-x-auto -mx-4 md:mx-0">
-                <div className="inline-block min-w-full align-middle px-4 md:px-0">
-                  <PersonaTableWithMonths
-                    personas={personasFiltradas}
-                    onVerDetalle={handleVerDetalle}
-                    onEditar={handleEditar}
-                    onEliminar={handleEliminarPersona}
-                    onGenerarQR={handleGenerarQR}
-                    anioSeleccionado={anioSeleccionado}
-                  />
+              <>
+                <div className="overflow-x-auto -mx-4 md:mx-0">
+                  <div className="inline-block min-w-full align-middle px-4 md:px-0">
+                    <PersonaTableWithMonths
+                      personas={personasPaginadas}
+                      onVerDetalle={handleVerDetalle}
+                      onEditar={handleEditar}
+                      onEliminar={handleEliminarPersona}
+                      onGenerarQR={handleGenerarQR}
+                      anioSeleccionado={anioSeleccionado}
+                    />
+                  </div>
                 </div>
-              </div>
+
+                {/* ✅ Controles de paginación */}
+                {totalPaginas > 1 && (
+                  <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <button
+                      onClick={() => setPaginaActual(prev => Math.max(prev - 1, 1))}
+                      disabled={paginaActual === 1}
+                      className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto justify-center"
+                    >
+                      <ChevronLeft size={20} />
+                      <span>Anterior</span>
+                    </button>
+
+                    <div className="flex items-center gap-2 flex-wrap justify-center">
+                      {generarNumerosPagina().map((pagina, idx) => (
+                        pagina === '...' ? (
+                          <span key={`ellipsis-${idx}`} className="px-2 text-gray-500">
+                            ...
+                          </span>
+                        ) : (
+                          <button
+                            key={pagina}
+                            onClick={() => setPaginaActual(pagina)}
+                            className={`w-10 h-10 rounded-lg font-medium transition ${
+                              paginaActual === pagina
+                                ? 'bg-indigo-600 text-white'
+                                : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                            }`}
+                          >
+                            {pagina}
+                          </button>
+                        )
+                      ))}
+                    </div>
+
+                    <button
+                      onClick={() => setPaginaActual(prev => Math.min(prev + 1, totalPaginas))}
+                      disabled={paginaActual === totalPaginas}
+                      className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto justify-center"
+                    >
+                      <span>Siguiente</span>
+                      <ChevronRight size={20} />
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </div>
 
