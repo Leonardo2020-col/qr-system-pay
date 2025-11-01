@@ -1,63 +1,102 @@
 // src/components/MonthStatusModal.jsx
 
 import React, { useState, useEffect } from 'react';
-import { X, Check, XCircle, Calendar, User, Phone, Mail, CheckCircle } from 'lucide-react';
+import { X, Calendar, Check } from 'lucide-react';
 import supabaseService from '../services/supabaseService';
 
-const MESES_COMPLETOS = [
-  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
-];
-
-const MonthStatusModal = ({ persona, onCerrar, anioInicial = new Date().getFullYear() }) => {
-  const [anioSeleccionado, setAnioSeleccionado] = useState(anioInicial);
-  const [mesSeleccionado, setMesSeleccionado] = useState(new Date().getMonth() + 1);
-  const [estatusMes, setEstatusMes] = useState(null);
+const MonthStatusModal = ({ persona, onCerrar, anioInicial }) => {
+  const [estatusMensual, setEstatusMensual] = useState({});
+  const [anioSeleccionado, setAnioSeleccionado] = useState(anioInicial || new Date().getFullYear());
   const [cargando, setCargando] = useState(true);
+  const [guardando, setGuardando] = useState(false);
+
+  const mesesNombres = [
+    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+  ];
 
   useEffect(() => {
-    cargarEstatusMes();
-  }, [persona, anioSeleccionado, mesSeleccionado]);
+    cargarEstatusMensual();
+  }, [anioSeleccionado]);
 
-  const cargarEstatusMes = async () => {
+  const cargarEstatusMensual = async () => {
+    setCargando(true);
     try {
-      setCargando(true);
-      const estatus = await supabaseService.obtenerEstatusMes(
-        persona.id, 
-        anioSeleccionado, 
-        mesSeleccionado
+      const estatus = await supabaseService.obtenerEstatusMensual(
+        persona.id,
+        anioSeleccionado
       );
-      setEstatusMes(estatus);
+      setEstatusMensual(estatus || {});
     } catch (error) {
-      console.error('Error cargando estatus del mes:', error);
+      console.error('Error cargando estatus mensual:', error);
+      setEstatusMensual({});
     } finally {
       setCargando(false);
     }
   };
 
-  const handleToggleEstatus = async () => {
+  const handleToggleEstatus = async (mes) => {
+    const mesNumero = mes + 1;
+    const estatusActual = estatusMensual[mesNumero] || false;
+    const nuevoEstatus = !estatusActual;
+
+    // Actualización optimista
+    setEstatusMensual(prev => ({
+      ...prev,
+      [mesNumero]: nuevoEstatus
+    }));
+
+    setGuardando(true);
     try {
-      await supabaseService.toggleEstatusMensual(
+      await supabaseService.actualizarEstatusMensual(
         persona.id,
         anioSeleccionado,
-        mesSeleccionado
+        mesNumero,
+        nuevoEstatus
       );
-      await cargarEstatusMes();
     } catch (error) {
       console.error('Error actualizando estatus:', error);
+      // Revertir cambio
+      setEstatusMensual(prev => ({
+        ...prev,
+        [mesNumero]: estatusActual
+      }));
       alert('Error al actualizar el estatus');
+    } finally {
+      setGuardando(false);
     }
   };
 
-  if (!persona) return null;
+  const contarCheckeados = () => {
+    return Object.values(estatusMensual).filter(Boolean).length;
+  };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
         {/* Header */}
-        <div className="bg-gradient-to-r from-indigo-600 to-indigo-700 p-6 text-white rounded-t-2xl">
-          <div className="flex justify-between items-start mb-4">
-            <h2 className="text-2xl font-bold">Información del Cliente</h2>
+        <div className="bg-gradient-to-r from-indigo-600 to-indigo-700 p-6 text-white">
+          <div className="flex items-start justify-between">
+            <div className="flex items-center gap-4">
+              {persona.foto_url ? (
+                <img
+                  src={persona.foto_url}
+                  alt={persona.nombre}
+                  className="w-16 h-16 rounded-full object-cover border-4 border-white shadow-lg"
+                />
+              ) : (
+                <div className="w-16 h-16 rounded-full bg-white text-indigo-600 flex items-center justify-center font-bold text-2xl shadow-lg">
+                  {persona.nombre?.charAt(0)?.toUpperCase()}
+                </div>
+              )}
+              <div>
+                <h2 className="text-2xl font-bold">{persona.nombre}</h2>
+                <p className="text-indigo-100 text-sm">DNI: {persona.dni}</p>
+                {persona.asociacion && (
+                  <p className="text-indigo-100 text-sm">Asociación: {persona.asociacion}</p>
+                )}
+              </div>
+            </div>
             <button
               onClick={onCerrar}
               className="text-white hover:bg-white/20 p-2 rounded-lg transition"
@@ -65,170 +104,104 @@ const MonthStatusModal = ({ persona, onCerrar, anioInicial = new Date().getFullY
               <X size={24} />
             </button>
           </div>
-
-          {/* Foto y nombre */}
-          <div className="flex items-center gap-4">
-            {persona.foto_url ? (
-              <img 
-                src={persona.foto_url} 
-                alt={persona.nombre}
-                className="w-20 h-20 rounded-full object-cover border-4 border-white shadow-lg"
-                onError={(e) => {
-                  e.target.style.display = 'none';
-                }}
-              />
-            ) : (
-              <div className="w-20 h-20 rounded-full bg-white flex items-center justify-center text-indigo-600 font-bold text-3xl shadow-lg">
-                {persona.nombre.charAt(0).toUpperCase()}
-              </div>
-            )}
-            <div>
-              <h3 className="text-xl font-bold">{persona.nombre}</h3>
-              <p className="text-indigo-100">DNI: {persona.dni}</p>
-            </div>
-          </div>
         </div>
 
         {/* Contenido */}
-        <div className="p-6 space-y-6">
-          {/* Información de contacto */}
-          <div className="space-y-3">
-            <h4 className="font-semibold text-gray-800 flex items-center gap-2">
-              <User size={18} className="text-indigo-600" />
-              Información de Contacto
-            </h4>
-            <div className="bg-gray-50 rounded-lg p-4 space-y-2 text-sm">
-              {persona.email && (
-                <div className="flex items-center gap-2 text-gray-700">
-                  <Mail size={16} className="text-gray-400" />
-                  <span>{persona.email}</span>
-                </div>
-              )}
-              <div className="flex items-center gap-2 text-gray-700">
-                <Phone size={16} className="text-gray-400" />
-                <span>{persona.telefono}</span>
+        <div className="p-6 overflow-y-auto max-h-[calc(90vh-200px)]">
+          {/* Selector de año y estadísticas */}
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+            <div className="flex items-center gap-3">
+              <Calendar size={24} className="text-indigo-600" />
+              <h3 className="text-xl font-bold text-gray-800">Estatus Mensual</h3>
+            </div>
+            
+            <div className="flex items-center gap-4">
+              <div className="bg-gradient-to-r from-green-50 to-green-100 px-4 py-2 rounded-lg border border-green-200">
+                <span className="text-sm font-medium text-green-800">
+                  {contarCheckeados()} / 12 meses checkeados
+                </span>
               </div>
+              
+              <select
+                value={anioSeleccionado}
+                onChange={(e) => setAnioSeleccionado(parseInt(e.target.value))}
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white font-medium"
+              >
+                <option value={2024}>2024</option>
+                <option value={2025}>2025</option>
+                <option value={2026}>2026</option>
+                <option value={2027}>2027</option>
+              </select>
             </div>
           </div>
 
-          {/* Selector de mes y año */}
-          <div className="space-y-3">
-            <h4 className="font-semibold text-gray-800 flex items-center gap-2">
-              <Calendar size={18} className="text-indigo-600" />
-              Seleccionar Período
-            </h4>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Mes
-                </label>
-                <select
-                  value={mesSeleccionado}
-                  onChange={(e) => setMesSeleccionado(parseInt(e.target.value))}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                >
-                  {MESES_COMPLETOS.map((mes, index) => (
-                    <option key={index} value={index + 1}>
-                      {mes}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Año
-                </label>
-                <select
-                  value={anioSeleccionado}
-                  onChange={(e) => setAnioSeleccionado(parseInt(e.target.value))}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                >
-                  {[2024, 2025, 2026, 2027].map(anio => (
-                    <option key={anio} value={anio}>{anio}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </div>
-
-          {/* Estatus del mes */}
+          {/* Grid de meses */}
           {cargando ? (
-            <div className="text-center py-8">
-              <div className="animate-spin w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full mx-auto mb-2"></div>
-              <p className="text-gray-600 text-sm">Cargando...</p>
+            <div className="text-center py-12">
+              <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mb-4"></div>
+              <p className="text-gray-600">Cargando estatus...</p>
             </div>
           ) : (
-            <>
-              <div className={`rounded-xl p-6 text-center ${
-                estatusMes?.estatus
-                  ? 'bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-300'
-                  : 'bg-gradient-to-br from-red-50 to-red-100 border-2 border-red-300'
-              }`}>
-                {estatusMes?.estatus ? (
-                  <>
-                    <CheckCircle size={64} className="mx-auto text-green-600 mb-3" />
-                    <h3 className="text-2xl font-bold text-green-800 mb-2">
-                      ✓ Completado
-                    </h3>
-                    <p className="text-green-700 font-medium">
-                      {MESES_COMPLETOS[mesSeleccionado - 1]} {anioSeleccionado}
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <XCircle size={64} className="mx-auto text-red-600 mb-3" />
-                    <h3 className="text-2xl font-bold text-red-800 mb-2">
-                      ✗ Pendiente
-                    </h3>
-                    <p className="text-red-700 font-medium">
-                      {MESES_COMPLETOS[mesSeleccionado - 1]} {anioSeleccionado}
-                    </p>
-                  </>
-                )}
-              </div>
-
-              {/* Botón para cambiar estatus */}
-              <button
-                onClick={handleToggleEstatus}
-                className={`w-full py-3 px-4 rounded-lg font-semibold transition flex items-center justify-center gap-2 ${
-                  estatusMes?.estatus
-                    ? 'bg-red-600 hover:bg-red-700 text-white'
-                    : 'bg-green-600 hover:bg-green-700 text-white'
-                }`}
-              >
-                {estatusMes?.estatus ? (
-                  <>
-                    <X size={20} />
-                    Marcar como Pendiente
-                  </>
-                ) : (
-                  <>
-                    <Check size={20} />
-                    Marcar como Completado
-                  </>
-                )}
-              </button>
-
-              {/* Observaciones */}
-              {estatusMes?.observaciones && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <p className="text-sm text-blue-800">
-                    <strong>Observaciones:</strong> {estatusMes.observaciones}
-                  </p>
-                </div>
-              )}
-            </>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+              {mesesNombres.map((mes, idx) => {
+                const mesNumero = idx + 1;
+                const estaCheckeado = estatusMensual[mesNumero] || false;
+                
+                return (
+                  <button
+                    key={idx}
+                    onClick={() => handleToggleEstatus(idx)}
+                    disabled={guardando}
+                    className={`relative p-4 rounded-xl border-2 transition-all duration-200 ${
+                      estaCheckeado
+                        ? 'bg-gradient-to-br from-green-50 to-green-100 border-green-400 shadow-md'
+                        : 'bg-white border-gray-300 hover:border-indigo-400 hover:shadow-md'
+                    } ${guardando ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                  >
+                    <div className="flex flex-col items-center gap-2">
+                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all ${
+                        estaCheckeado
+                          ? 'bg-green-500 text-white scale-110'
+                          : 'bg-gray-200 text-gray-400'
+                      }`}>
+                        <Check size={20} strokeWidth={3} className={estaCheckeado ? 'animate-in zoom-in' : ''} />
+                      </div>
+                      
+                      <p className={`font-semibold text-sm ${
+                        estaCheckeado ? 'text-green-800' : 'text-gray-700'
+                      }`}>
+                        {mes}
+                      </p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
           )}
+
+          {/* Leyenda */}
+          <div className="mt-6 flex items-center justify-center gap-6 p-4 bg-gray-50 rounded-lg">
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded bg-green-500"></div>
+              <span className="text-sm text-gray-700">Checkeado</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded bg-gray-300"></div>
+              <span className="text-sm text-gray-700">No checkeado</span>
+            </div>
+          </div>
         </div>
 
         {/* Footer */}
-        <div className="bg-gray-50 px-6 py-4 rounded-b-2xl">
-          <button
-            onClick={onCerrar}
-            className="w-full bg-gray-600 text-white py-2 px-4 rounded-lg hover:bg-gray-700 transition font-medium"
-          >
-            Cerrar
-          </button>
+        <div className="bg-gray-50 px-6 py-4 border-t border-gray-200">
+          <div className="flex justify-end">
+            <button
+              onClick={onCerrar}
+              className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition font-medium"
+            >
+              Cerrar
+            </button>
+          </div>
         </div>
       </div>
     </div>
