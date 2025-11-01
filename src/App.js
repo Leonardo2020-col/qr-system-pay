@@ -11,6 +11,7 @@ import SearchBar from './components/SearchBar';
 import QRScannerApp from './components/QRScannerApp';
 import MonthStatusModal from './components/MonthStatusModal';
 import EditPersonaModal from './components/EditPersonaModal';
+import LoginScreen from './components/LoginScreen';
 import supabaseService from './services/supabaseService';
 import { diagnosticarGoogleSheets } from './utils/googleDiagnostic';
 
@@ -30,6 +31,10 @@ function App() {
     desconectarGoogleSheets,
   } = useHybridData();
 
+  // Estados de autenticación
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isScanOnlyMode, setIsScanOnlyMode] = useState(false);
+
   const [busqueda, setBusqueda] = useState('');
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
   const [qrUrl, setQrUrl] = useState('');
@@ -38,17 +43,15 @@ function App() {
   const [mostrarEscaner, setMostrarEscaner] = useState(false);
   const [generandoQR, setGenerandoQR] = useState(false);
   
-  // Estados para modales
   const [mostrarModalMes, setMostrarModalMes] = useState(false);
   const [mostrarModalEditar, setMostrarModalEditar] = useState(false);
   const [personaParaModal, setPersonaParaModal] = useState(null);
   const [anioSeleccionado, setAnioSeleccionado] = useState(new Date().getFullYear());
 
-  // ✅ Estados de paginación
+  // Estados de paginación
   const [paginaActual, setPaginaActual] = useState(1);
   const PERSONAS_POR_PAGINA = 15;
 
-  // Diagnóstico de Google Sheets
   useEffect(() => {
     const timer = setTimeout(() => {
       diagnosticarGoogleSheets();
@@ -121,36 +124,35 @@ function App() {
     }
   };
 
-  // ✅ Filtrar personas
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    setIsScanOnlyMode(false);
+  };
+
   const personasFiltradas = personas.filter(
     (p) =>
       p.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
       p.dni.includes(busqueda)
   );
 
-  // ✅ Calcular paginación
   const totalPaginas = Math.ceil(personasFiltradas.length / PERSONAS_POR_PAGINA);
   const indiceInicio = (paginaActual - 1) * PERSONAS_POR_PAGINA;
   const indiceFin = indiceInicio + PERSONAS_POR_PAGINA;
   const personasPaginadas = personasFiltradas.slice(indiceInicio, indiceFin);
 
-  // ✅ Resetear a página 1 cuando cambie la búsqueda
   useEffect(() => {
     setPaginaActual(1);
   }, [busqueda]);
 
-  // ✅ Generar números de página para mostrar
   const generarNumerosPagina = () => {
     const paginas = [];
     const maxPaginasVisibles = 5;
     
     if (totalPaginas <= maxPaginasVisibles) {
-      // Mostrar todas las páginas si son pocas
       for (let i = 1; i <= totalPaginas; i++) {
         paginas.push(i);
       }
     } else {
-      // Mostrar páginas con ellipsis
       if (paginaActual <= 3) {
         paginas.push(1, 2, 3, 4, '...', totalPaginas);
       } else if (paginaActual >= totalPaginas - 2) {
@@ -163,6 +165,22 @@ function App() {
     return paginas;
   };
 
+  // Pantalla de login
+  if (!isAuthenticated && !isScanOnlyMode) {
+    return (
+      <LoginScreen 
+        onLoginSuccess={() => setIsAuthenticated(true)}
+        onScanMode={() => setIsScanOnlyMode(true)}
+      />
+    );
+  }
+
+  // Modo solo escanear
+  if (isScanOnlyMode) {
+    return <QRScannerApp onVolver={handleLogout} />;
+  }
+
+  // Modo escáner completo (autenticado)
   if (mostrarEscaner) {
     return <QRScannerApp onVolver={() => setMostrarEscaner(false)} />;
   }
@@ -173,13 +191,24 @@ function App() {
         {/* Header */}
         <div className="bg-white rounded-2xl shadow-xl p-4 md:p-6 mb-4 md:mb-6">
           <div className="flex flex-col gap-4">
-            <div>
-              <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-gray-800 mb-1">
-                Sistema de Gestión QR
-              </h1>
-              <p className="text-xs md:text-sm lg:text-base text-gray-600">
-                Control de estatus mensual y generación de códigos QR
-              </p>
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-gray-800 mb-1">
+                  Sistema de Gestión QR
+                </h1>
+                <p className="text-xs md:text-sm lg:text-base text-gray-600">
+                  Control de estatus mensual y generación de códigos QR
+                </p>
+              </div>
+              
+              {/* Botón de Logout */}
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-2 px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition font-medium"
+              >
+                <LogOut size={18} />
+                <span className="hidden md:inline">Salir</span>
+              </button>
             </div>
             
             {/* Selector de año */}
@@ -216,7 +245,6 @@ function App() {
                 <span className="text-xs font-medium">Actualizar</span>
               </button>
 
-              {/* Botones de Google Sheets */}
               {googleSheetsReady && (
                 googleSheetsAuth ? (
                   <>
@@ -235,7 +263,7 @@ function App() {
                       className="flex flex-col items-center justify-center gap-1 bg-red-100 text-red-700 px-2 py-3 rounded-lg hover:bg-red-200 transition"
                     >
                       <LogOut size={18} className="md:w-5 md:h-5" />
-                      <span className="text-xs font-medium">Salir</span>
+                      <span className="text-xs font-medium">Desconectar</span>
                     </button>
                   </>
                 ) : (
@@ -253,7 +281,6 @@ function App() {
           </div>
         </div>
 
-        {/* Error global */}
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-4 md:mb-6 flex items-start gap-3">
             <AlertCircle size={20} className="mt-0.5 flex-shrink-0" />
@@ -264,9 +291,7 @@ function App() {
           </div>
         )}
 
-        {/* Contenido principal */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
-          {/* Tabla de personas con estatus mensuales */}
           <div className="lg:col-span-2 bg-white rounded-2xl shadow-xl p-4 md:p-6 overflow-hidden">
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4 md:mb-6">
               <h2 className="text-lg md:text-xl lg:text-2xl font-bold text-gray-800">
@@ -294,7 +319,6 @@ function App() {
               <SearchBar busqueda={busqueda} onBusquedaChange={setBusqueda} />
             </div>
 
-            {/* ✅ Info de paginación */}
             {personasFiltradas.length > 0 && (
               <div className="mb-4 bg-gradient-to-r from-indigo-50 to-blue-50 p-3 rounded-lg border border-indigo-200">
                 <div className="flex items-center justify-between text-sm">
@@ -328,7 +352,6 @@ function App() {
                   </div>
                 </div>
 
-                {/* ✅ Controles de paginación */}
                 {totalPaginas > 1 && (
                   <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
                     <button
@@ -376,7 +399,6 @@ function App() {
             )}
           </div>
 
-          {/* Panel de QR */}
           <div className="bg-white rounded-2xl shadow-xl p-4 md:p-6 overflow-hidden">
             <h2 className="text-lg md:text-xl lg:text-2xl font-bold text-gray-800 mb-4 md:mb-6">
               Código QR
@@ -398,7 +420,6 @@ function App() {
         </div>
       </div>
 
-      {/* Modales */}
       {mostrarModalMes && personaParaModal && (
         <MonthStatusModal
           persona={personaParaModal}
